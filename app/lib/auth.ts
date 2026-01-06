@@ -31,43 +31,7 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
         return false; // Reject users from other domains
       }
 
-      // Check if user already exists (returning user)
-      const existingUser = await prisma.user.findUnique({
-        where: { email: user.email! },
-      });
-
-      if (existingUser) {
-        return true; // Allow existing users to sign in
-      }
-
-      // For new users, check if they have a valid invitation
-      const invitation = await prisma.invitation.findUnique({
-        where: { email: user.email! },
-      });
-
-      if (!invitation) {
-        return false; // No invitation found
-      }
-
-      if (invitation.status !== "PENDING") {
-        return false; // Invitation already used or expired
-      }
-
-      if (invitation.expiresAt < new Date()) {
-        // Mark invitation as expired
-        await prisma.invitation.update({
-          where: { id: invitation.id },
-          data: { status: "EXPIRED" },
-        });
-        return false;
-      }
-
-      // Mark invitation as accepted
-      await prisma.invitation.update({
-        where: { id: invitation.id },
-        data: { status: "ACCEPTED" },
-      });
-
+      // Allow all users from systedo.cz domain
       return true;
     },
     async redirect({ url, baseUrl }) {
