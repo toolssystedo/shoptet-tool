@@ -1,0 +1,171 @@
+import { z } from "zod";
+
+// Platform types
+export type Platform = "shoptet" | "upgates";
+
+// Available source columns for AI extraction
+export type SourceColumn =
+  | "name"
+  | "shortDescription"
+  | "description"
+  | "weight"
+  | "warranty"
+  | "manufacturer"
+  | "supplier";
+
+// Enrichment configuration
+export interface EnrichmentConfig {
+  platform: Platform;
+  generateFiltering: boolean;
+  generateTextProperties: boolean;
+  filteringInstructions: string;
+  textPropertyInstructions: string;
+  sourceColumns: SourceColumn[];
+  maxFilteringParams: number;
+  maxTextParams: number;
+  clearExistingProperties: boolean;
+}
+
+// Parsed file data
+export interface ParsedFileData {
+  headers: string[];
+  rows: ProductRow[];
+  totalRows: number;
+  fileName: string;
+}
+
+// AI extraction result for a single row
+export interface AIExtractionResult {
+  filtering: FilteringProperty[];
+  text: TextProperty[];
+}
+
+export interface FilteringProperty {
+  name: string;
+  value: string;
+}
+
+export interface TextProperty {
+  key: string;
+  value: string;
+}
+
+// Single product row - base data from file
+export interface ProductRow {
+  rowIndex: number;
+  shortDescription?: string;
+  description?: string;
+  textProperty?: string;
+  [key: string]: string | number | undefined;
+}
+
+// Enriched row with AI results - separate interface to avoid index signature conflicts
+export interface EnrichedRow {
+  rowIndex: number;
+  shortDescription?: string;
+  description?: string;
+  textProperty?: string;
+  aiResult?: AIExtractionResult;
+  error?: string;
+  [key: string]: string | number | AIExtractionResult | undefined;
+}
+
+// Preview result
+export interface PreviewResult {
+  originalRows: ProductRow[];
+  enrichedRows: EnrichedRow[];
+  success: boolean;
+  errors?: string[];
+}
+
+// Processing status
+export type ProcessingStatus = "idle" | "processing" | "completed" | "error";
+
+// Progress update
+export interface ProgressUpdate {
+  processed: number;
+  total: number;
+  currentRow?: number;
+  status: ProcessingStatus;
+  error?: string;
+}
+
+// File validation result
+export interface ValidationResult {
+  valid: boolean;
+  errors: string[];
+  warnings: string[];
+  headers?: string[];
+  rowCount?: number;
+}
+
+// Zod schemas for validation
+export const filteringPropertySchema = z.object({
+  name: z.string().min(1),
+  value: z.string(),
+});
+
+export const textPropertySchema = z.object({
+  key: z.string().min(1),
+  value: z.string(),
+});
+
+export const aiExtractionResultSchema = z.object({
+  filtering: z.array(filteringPropertySchema),
+  text: z.array(textPropertySchema),
+});
+
+export const enrichmentConfigSchema = z.object({
+  platform: z.enum(["shoptet", "upgates"]),
+  generateFiltering: z.boolean(),
+  generateTextProperties: z.boolean(),
+  filteringInstructions: z.string(),
+  textPropertyInstructions: z.string(),
+  sourceColumns: z
+    .array(
+      z.enum([
+        "name",
+        "shortDescription",
+        "description",
+        "weight",
+        "warranty",
+        "manufacturer",
+        "supplier",
+      ])
+    )
+    .min(1),
+  maxFilteringParams: z.number().min(1).max(20),
+  maxTextParams: z.number().min(1).max(20),
+  clearExistingProperties: z.boolean(),
+});
+
+// Category group for product organization
+export interface CategoryGroup {
+  categoryName: string;
+  categoryPath: string[]; // полный путь категории
+  products: EnrichedRow[];
+  commonParams: {
+    filtering: string[]; // общие filtering параметры (названия)
+    text: string[]; // общие text параметры (ключи)
+  };
+}
+
+// Shoptet specific constants
+export const SHOPTET_REQUIRED_HEADERS = [
+  "shortDescription",
+  "description",
+  "textProperty",
+] as const;
+
+export const SHOPTET_FILTERING_PREFIX = "filteringProperty:";
+export const SHOPTET_TEXT_PROPERTY_PREFIX = "textProperty";
+
+// Shoptet category columns
+export const SHOPTET_CATEGORY_COLUMNS = [
+  "defaultCategory",
+  "categoryText",
+  "categoryText2",
+  "categoryText3",
+  "categoryText4",
+  "categoryText5",
+] as const;
