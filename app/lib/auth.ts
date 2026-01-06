@@ -23,6 +23,14 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
   ],
   callbacks: {
     async signIn({ user }) {
+      // Check if email belongs to allowed domain
+      const allowedDomain = "systedo.cz";
+      const emailDomain = user.email?.split("@")[1];
+
+      if (emailDomain !== allowedDomain) {
+        return false; // Reject users from other domains
+      }
+
       // Check if user already exists (returning user)
       const existingUser = await prisma.user.findUnique({
         where: { email: user.email! },
