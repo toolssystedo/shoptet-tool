@@ -182,151 +182,157 @@ async function extractWithAI(
   }
 }
 
-// function buildSystemPrompt(config: EnrichmentConfig): string {
-//   return `Jsi asistent pro extrakci produktových dat. Tvým úkolem je analyzovat popisy produktů a extrahovat strukturované atributy.
-
-// Musíš vrátit JSON objekt se dvěma poli:
-// - "filtering": Pole objektů s klíči "name" a "value" (MALÁ písmena!) - pro produktové filtry
-// - "text": Pole objektů s klíči "key" a "value" (MALÁ písmena!) - pro textové vlastnosti
-
-// PŘESNÝ FORMÁT (KRITICKY DŮLEŽITÉ - použij PŘESNĚ tyto názvy klíčů):
-// - filtering: [{ "name": "Barva", "value": "modrá" }]
-// - text: [{ "key": "Vůně", "value": "meruňka" }]
-// POZOR: Klíče "name", "key", "value" musí být s MALÝM počátečním písmenem!
-
-// DŮLEŽITÁ PRAVIDLA:
-// 1. Extrahuj POUZE informace, které jsou EXPLICITNĚ zmíněny v textu
-// 2. NEVYMÝŠLEJ a nepředpokládej hodnoty
-// 3. Používej PŘESNĚ názvy vlastností, které uživatel specifikoval
-// 4. Hodnoty musí být STRUČNÉ - maximálně 1-3 slova (např. "modrá", "100% bavlna", "XL")
-// 5. NIKDY nepoužívej celé věty nebo popisy jako hodnoty
-// 6. NIKDY nepoužívej "description" nebo "popis" jako název parametru
-// 7. Pokud vlastnost nelze najít, NEZAHRNUJ ji do výstupu
-// 8. Vrať prázdná pole, pokud nejsou nalezeny žádné relevantní informace
-// 9. Maximálně ${config.maxFilteringParams} filtrovacích vlastností
-// 10. Maximálně ${config.maxTextParams} textových vlastností
-// 11. Všechny hodnoty musí být v ČEŠTINĚ
-
-// PRAVIDLA KONZISTENCE (VELMI DŮLEŽITÉ):
-// 12. Názvy parametrů VŽDY piš s VELKÝM počátečním písmenem (např. "Barva", "Vůně", "Objem")
-// 13. Hodnoty parametrů piš s MALÝM počátečním písmenem, pokud nejde o vlastní jméno (např. "modrá", "meruňka", "vanilka")
-// 14. Používej jednotné číslo a základní tvar slova v 1. pádě (např. "meruňka" NE "meruňky" nebo "meruněk")
-// 15. Pro vůně/aroma používej jednoslovné názvy v základním tvaru: "meruňka", "vanilka", "levandule"
-// 16. Pro barvy používej jednoslovné názvy: "modrá", "červená", "zelená"
-// 17. Pro objem/hmotnost VŽDY uváděj s jednotkou: "100 ml", "250 g", "1 l"
-// 18. Extrahuj STEJNÉ parametry pro podobné produkty - pokud má jeden produkt parametr "Vůně", musí ho mít i podobný produkt
-// 19. Počet extrahovaných parametrů by měl být konzistentní pro podobné produkty ve stejné kategorii`;
-// }
-
 function buildSystemPrompt(config: EnrichmentConfig): string {
-  return `Jsi expert na e-commerce data. Tvým úkolem je extrahovat parametry produktů do strukturovaného JSON.
+  return `# Role
+Jsi zkušený e-commerce specialista na produktová data pro český trh. Tvým úkolem je analyzovat popisy produktů a extrahovat strukturované parametry, které budou použity pro filtry a specifikace v e-shopu na platformě Shoptet.
 
-STRUKTURA:
+## Vstup
+Dostaneš:
+- **Název produktu** (name)
+- **Krátký popis** (shortDescription) – stručné shrnutí produktu
+- **Dlouhý popis** (description) – detailní informace, specifikace, vlastnosti
+- Případně další údaje (hmotnost, výrobce, dodavatel, záruka)
+
+### Formát vstupního popisu
+Popis produktu může být:
+- **Čistý text** – prostý text bez formátování
+- **HTML** – obsahuje tagy jako \`<ul>\`, \`<li>\`, \`<p>\`, \`<strong>\`, \`<br>\` apod.
+
+Pokud je popis v HTML, interpretuj obsah správně:
+- \`<li>\` položky čti jako jednotlivé vlastnosti/specifikace
+- \`<strong>\` nebo \`<b>\` značí důležité informace
+- Ignoruj inline styly a zaměř se na obsah
+
+## Výstup
+Vrať JSON objekt se dvěma poli:
+\`\`\`json
 {
   "filtering": [{"name": "Parametr", "value": "hodnota"}],
   "text": [{"key": "Parametr", "value": "hodnota"}]
 }
+\`\`\`
 
-ZÁKLADNÍ PRAVIDLA FORMÁTU:
-1. Název (name/key): VŽDY začíná VELKÝM písmenem (např. "Materiál", "Objem", "Kompatibilita").
-2. Hodnota (value): VŽDY začíná MALÝM písmenem (např. "100% bavlna", "černá"), pokud nejde o vlastní jméno, značku nebo specifické označení (např. "Apple", "v8", "ISO 9001").
-3. Jednotky: VŽDY s mezerou (např. "500 g", "12 V", "20 l").
+### Rozdíl mezi filtering a text
+- **filtering** = parametry pro FILTRY v e-shopu (barva, velikost, materiál, značka) – zákazník podle nich vybírá produkty
+- **text** = informační SPECIFIKACE produktu (záruka, rozměry, údržba, certifikace) – detaily zobrazené na kartě produktu
 
-UNIVERZÁLNÍ LOGIKA EXTRAKCE:
-1. PRINCIP SETU: Pokud je produktem sada (box, set, balení více kusů), neextrahuj parametry jednotlivě (např. 3 různé objemy). Vytvoř parametr "Obsah balení" (nebo "Složení setu") a uveď výčet produktů jako hodnotu.
-2. KONZISTENCE KATEGORIÍ: Pokud extrahuješ parametry pro více podobných produktů, používej identické názvy klíčů. 
-   - Např. pro alkohol vždy "Obsah alkoholu", nikoliv jednou "Voltáž" a podruhé "Alk.".
-   - Pro rozměry vždy "Rozměry", nikoliv "Velikost" u jednoho a "Délka x šířka" u druhého.
-3. LOGIKA ODVĚTVÍ:
-   - POTRAVINY: Místo "Vůně" u jídla použij "Chuť". Místo "Barva" (pokud není klíčová) se zaměř na "Složení" nebo "Původ".
-   - MÓDA: Zaměř se na "Materiál", "Střih", "Velikost".
-   - TECHNIKA/AUTO: Zaměř se na "Napětí", "Výkon", "Kompatibilita", "Typ motoru".
-4. ELIMINACE BALASTU: Neextrahuj subjektivní nebo zřejmé věci (např. u sušeného ovoce není barva "oranžová" užitečný parametr, pokud to není klíčová vlastnost).
-5. BOOLEAN HODNOTY: Místo "Konzervanty: ne" piš "Vlastnosti: bez konzervantů".
+## Pravidla formátování (DŮLEŽITÉ)
 
-MAXIMÁLNÍ POČET:
-- Filtering: ${config.maxFilteringParams}
-- Text: ${config.maxTextParams}`;
+### Názvy parametrů (name/key)
+1. **Vždy s VELKÝM počátečním písmenem** – "Materiál", "Objem", "Barva"
+2. **Jednotný tvar** – používej stejné názvy pro stejné typy parametrů napříč produkty
+3. **Bez zkratek** – "Obsah alkoholu" nikoliv "Alk."
+
+### Hodnoty parametrů (value)
+1. **S MALÝM počátečním písmenem** – "modrá", "100% bavlna", "nerezová ocel"
+2. **Výjimka**: Vlastní jména, značky, certifikace – "Apple", "ISO 9001", "Samsung"
+3. **Jednotky vždy s mezerou** – "500 g", "12 V", "250 ml", "48 % obj."
+4. **Jednotné číslo, základní tvar** – "meruňka" ne "meruňky", "bavlna" ne "bavlny"
+5. **Krátké hodnoty** – max 3-4 slova, žádné celé věty
+
+### Příklady správného formátu
+✅ Správně:
+- { "name": "Materiál", "value": "100% bavlna" }
+- { "name": "Objem", "value": "250 ml" }
+- { "name": "Obsah alkoholu", "value": "48 % obj." }
+- { "name": "Barva", "value": "tmavě modrá" }
+- { "key": "Záruka", "value": "24 měsíců" }
+
+❌ Špatně:
+- { "name": "materiál", "value": "Bavlna" } – malé písmeno v názvu, velké v hodnotě
+- { "name": "Objem", "value": "250ml" } – chybí mezera před jednotkou
+- { "name": "Popis", "value": "Tento produkt je vyroben z kvalitního materiálu..." } – celá věta
+
+## Pravidla extrakce (KRITICKY DŮLEŽITÉ)
+
+### Co extrahovat
+1. **Pouze EXPLICITNĚ zmíněné informace** – nikdy si nevymýšlej hodnoty
+2. **Objektivní, měřitelné vlastnosti** – materiál, rozměry, objem, hmotnost, barva
+3. **Technické specifikace** – výkon, napětí, kapacita, kompatibilita
+4. **Certifikace a standardy** – BIO, Vegan, ISO, CE
+
+### Co NEEXTRAHOVAT
+1. **Subjektivní hodnocení** – "kvalitní", "nejlepší", "luxusní"
+2. **Marketingové fráze** – "ideální pro", "perfektní na", "skvělý dárek"
+3. **Zřejmé informace** – barva oranžová u pomeranče, mokrý efekt u vody
+4. **Celé věty nebo popisy** – hodnota musí být krátká a konkrétní
+
+### Speciální případy
+
+#### Sady a balení
+Pokud je produkt sada/box/set více položek:
+- Vytvoř parametr "Obsah balení" nebo "Složení setu"
+- Hodnota = výčet položek (např. "3× sprchový gel, 2× šampon")
+- Neextrahuj parametry jednotlivých položek zvlášť
+
+#### Rozpoznání kategorie produktu
+Přizpůsob extrakci typu produktu:
+- **POTRAVINY/NÁPOJE**: Chuť, Složení, Původ, Obsah alkoholu, Hmotnost
+- **MÓDA/OBLEČENÍ**: Materiál, Střih, Velikost, Barva, Sezóna
+- **KOSMETIKA**: Typ pleti, Objem, Složení, Vůně, Účinek
+- **TECHNIKA/ELEKTRONIKA**: Výkon, Napětí, Rozměry, Kompatibilita, Připojení
+- **AUTO-MOTO**: Typ motoru, Objem, Kompatibilita s modelem, Materiál
+
+#### Boolean hodnoty
+Místo "Konzervanty: ne" použij "Vlastnosti: bez konzervantů"
+Místo "BIO: ano" použij "Certifikace: BIO"
+
+## Limity
+- Maximální počet **filtering** parametrů: ${config.maxFilteringParams}
+- Maximální počet **text** parametrů: ${config.maxTextParams}
+- Pokud nelze extrahovat žádné relevantní parametry, vrať prázdná pole
+
+## Konzistence napříč produkty
+Při zpracování více produktů ze stejné kategorie:
+1. Používej **identické názvy parametrů** – vždy "Objem" ne někdy "Velikost balení"
+2. Používej **stejný formát hodnot** – vždy "250 ml" ne někdy "250ml" a jindy "0,25 l"
+3. Extrahuj **stejné typy parametrů** – pokud u jednoho produktu extrahuješ barvu, extrahuj ji i u podobných produktů`;
 }
 
 function buildUserPrompt(sourceText: string, config: EnrichmentConfig): string {
   const parts: string[] = [];
 
-  parts.push(`Analyzuj produkt a extrahuj klíčové specifikace:
+  parts.push(`## Analyzuj následující produkt a extrahuj parametry:
+
 ---
 ${sourceText}
 ---`);
 
+  // Add specific instructions based on what user wants to extract
+  if (config.generateFiltering && config.filteringInstructions) {
+    parts.push(`
+### Požadované FILTROVACÍ parametry (filtering)
+Uživatel chce extrahovat tyto parametry pro filtry v e-shopu:
+${config.filteringInstructions}
+
+**Poznámka:** Extrahuj POUZE pokud jsou tyto informace explicitně zmíněny v textu. Nevymýšlej hodnoty.`);
+  }
+
+  if (config.generateTextProperties && config.textPropertyInstructions) {
+    parts.push(`
+### Požadované TEXTOVÉ parametry (text)
+Uživatel chce extrahovat tyto informační specifikace:
+${config.textPropertyInstructions}
+
+**Poznámka:** Extrahuj POUZE pokud jsou tyto informace explicitně zmíněny v textu. Nevymýšlej hodnoty.`);
+  }
+
+  // If no specific instructions, provide general guidance
+  if (!config.filteringInstructions && !config.textPropertyInstructions) {
+    parts.push(`
+### Obecné pokyny
+Extrahuj relevantní parametry, které najdeš v textu:
+- Do **filtering** zařaď: barva, materiál, velikost, značka, typ produktu
+- Do **text** zařaď: rozměry, hmotnost, záruka, certifikace, návod k údržbě`);
+  }
+
   parts.push(`
-POKYNY PRO ZPRACOVÁNÍ:
-1. IDENTIFIKACE: Urči, co je to za produkt. Pokud je to dárkový box nebo sada, seskup informace o obsahu do jednoho parametru "Obsah balení".
-2. NORMALIZACE: 
-   - Názvy parametrů: Velké počáteční písmeno.
-   - Hodnoty: Malé počáteční písmeno, jednotné číslo (pokud lze), základní tvar.
-3. RELEVANCE: Extrahuj jen to, co by zákazník hledal ve filtrech nebo technických specifikacích. Vyhni se obecným popisům.
-4. JEDNOTNOST: Pokud vidíš v textu hodnoty jako "48% obj." a u jiného produktu "48 %", sjednoť to na "48 % obj.".
+### Připomenutí formátu
+- Název parametru: velké počáteční písmeno (např. "Materiál", "Objem")
+- Hodnota: malé počáteční písmeno, krátká (např. "100% bavlna", "250 ml")
+- Jednotky s mezerou (např. "500 g", "12 V")
 
-Příklady správné transformace:
-- "Džemy: jahoda, meruňka, hruška" -> Name: "Příchuť", Value: "jahoda, meruňka, hruška"
-- "0,5l láhev" -> Name: "Objem", Value: "0,5 l"
-- "48% alkoholu" -> Name: "Obsah alkoholu", Value: "48 % obj."
-- "Materiál je 100% Bavlna" -> Name: "Materiál", Value: "100% bavlna"
-`);
-
-  if (config.filteringInstructions) {
-    parts.push(
-      `Upřednostni tyto FILTROVACÍ parametry: ${config.filteringInstructions}`
-    );
-  }
-
-  if (config.textPropertyInstructions) {
-    parts.push(
-      `Upřednostni tyto TEXTOVÉ parametry: ${config.textPropertyInstructions}`
-    );
-  }
-
-  parts.push("\nVrať výsledek v JSON formátu.");
+Vrať výsledek jako JSON objekt.`);
 
   return parts.join("\n");
 }
-
-// function buildUserPrompt(sourceText: string, config: EnrichmentConfig): string {
-//   const parts: string[] = [];
-
-//   parts.push("Analyzuj následující popis produktu a extrahuj atributy:\n");
-//   parts.push(`---\n${sourceText}\n---\n`);
-
-//   if (config.generateFiltering && config.filteringInstructions) {
-//     parts.push(
-//       `\nExtrahuj tyto FILTROVACÍ vlastnosti (pro produktové filtry, max ${config.maxFilteringParams}):\n${config.filteringInstructions}`
-//     );
-//     parts.push(
-//       "\nPříklad správného formátu: { name: 'Barva', value: 'Modrá' }"
-//     );
-//   }
-
-//   if (config.generateTextProperties && config.textPropertyInstructions) {
-//     parts.push(
-//       `\nExtrahuj tyto TEXTOVÉ vlastnosti (pro informační zobrazení, max ${config.maxTextParams}):\n${config.textPropertyInstructions}`
-//     );
-//     parts.push(
-//       "\nPříklad správného formátu: { key: 'Záruka', value: '2 roky' }"
-//     );
-//   }
-
-//   if (!config.filteringInstructions && !config.textPropertyInstructions) {
-//     parts.push(
-//       `\nExtrahuj relevantní produktové atributy, které najdeš. Rozděl je na filtrovací vlastnosti (barva, velikost, materiál - max ${config.maxFilteringParams}) nebo textové vlastnosti (záruka, péče, specifikace - max ${config.maxTextParams}).`
-//     );
-//   }
-
-//   parts.push(`
-
-// DŮLEŽITÉ PRO KONZISTENCI:
-// - Názvy parametrů s VELKÝM počátečním písmenem: "Barva", "Vůně", "Objem"
-// - Hodnoty s MALÝM písmenem v základním tvaru: "modrá", "meruňka", "vanilka"
-// - Objem vždy s jednotkou: "100 ml", "250 g"
-// - Hodnoty musí být krátké (1-3 slova), v češtině, pouze z textu!`);
-
-//   return parts.join("\n");
-// }

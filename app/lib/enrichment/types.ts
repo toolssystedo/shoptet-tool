@@ -151,10 +151,12 @@ export interface CategoryGroup {
 }
 
 // Shoptet specific constants
+// Required headers that MUST be in the export file (minimum for AI extraction to work)
 export const SHOPTET_REQUIRED_HEADERS = [
+  "code",
+  "name",
   "shortDescription",
   "description",
-  "textProperty",
 ] as const;
 
 export const SHOPTET_FILTERING_PREFIX = "filteringProperty:";
@@ -168,4 +170,55 @@ export const SHOPTET_CATEGORY_COLUMNS = [
   "categoryText3",
   "categoryText4",
   "categoryText5",
+] as const;
+
+// All allowed Shoptet columns (for validation)
+export const SHOPTET_ALLOWED_COLUMNS = [
+  // Required
+  "code",
+  "name",
+  "shortDescription",
+  "description",
+  "categoryText",
+  "adult",
+  "metaTitle",
+  "metaDescription",
+  // Category columns (optional)
+  "defaultCategory",
+  "categoryText2",
+  "categoryText3",
+  "categoryText4",
+  "categoryText5",
+  // Optional - used by AI for analysis
+  "weight",
+  "warranty",
+  "manufacturer",
+  "supplier",
+  // Optional - preserved in output
+  "ean",
+  "price",
+  "priceBefore",
+  "currency",
+  "vat",
+  "stock",
+  "minStock",
+  "unit",
+  "visibility",
+  // Other allowed columns
+  "pairCode",
+  "__EMPTY",
+] as const;
+
+// Columns that should be selected in Shoptet export
+export const SHOPTET_EXPORT_RECOMMENDED_COLUMNS = [
+  { name: "code", required: true, description: "Kód produktu" },
+  { name: "name", required: true, description: "Název produktu" },
+  { name: "shortDescription", required: true, description: "Krátký popis" },
+  { name: "description", required: true, description: "Popis" },
+  { name: "categoryText", required: false, description: "Kategorie" },
+  { name: "adult", required: false, description: "Pro dospělé" },
+  { name: "metaTitle", required: false, description: "Meta titulek" },
+  { name: "metaDescription", required: false, description: "Meta popis" },
+  { name: "manufacturer", required: false, description: "Výrobce (pro AI analýzu)" },
+  { name: "weight", required: false, description: "Hmotnost (pro AI analýzu)" },
 ] as const;

@@ -10,6 +10,7 @@ import {
   SHOPTET_REQUIRED_HEADERS,
   SHOPTET_FILTERING_PREFIX,
   SHOPTET_TEXT_PROPERTY_PREFIX,
+  SHOPTET_ALLOWED_COLUMNS,
 } from "./types";
 
 /**
@@ -21,7 +22,7 @@ export class ShoptetAdapter implements PlatformAdapter {
 
   /**
    * Validates Shoptet file structure
-   * Required headers: shortDescription, description, textProperty
+   * Required headers: name, shortDescription, description
    */
   validateFile(
     headers: string[],
@@ -29,16 +30,35 @@ export class ShoptetAdapter implements PlatformAdapter {
   ): ValidationResult {
     const errors: string[] = [];
     const warnings: string[] = [];
-    const normalizedHeaders = headers.map((h) => h.toLowerCase().trim());
 
     // Check for required headers
     for (const required of SHOPTET_REQUIRED_HEADERS) {
-      const found = normalizedHeaders.some(
-        (h) => h === required.toLowerCase() || h.startsWith(required.toLowerCase())
+      const found = headers.some(
+        (h) => h.toLowerCase() === required.toLowerCase()
       );
       if (!found) {
         errors.push(`Chybí povinná hlavička: ${required}`);
       }
+    }
+
+    // Check for unknown columns (not in allowed list and not special prefixes)
+    const unknownColumns: string[] = [];
+    for (const header of headers) {
+      const isAllowed = SHOPTET_ALLOWED_COLUMNS.some(
+        (allowed) => header.toLowerCase() === allowed.toLowerCase()
+      );
+      const isFilteringProperty = header.startsWith(SHOPTET_FILTERING_PREFIX);
+      const isTextProperty = header.toLowerCase().startsWith(SHOPTET_TEXT_PROPERTY_PREFIX.toLowerCase());
+
+      if (!isAllowed && !isFilteringProperty && !isTextProperty) {
+        unknownColumns.push(header);
+      }
+    }
+
+    if (unknownColumns.length > 0) {
+      errors.push(
+        `Soubor obsahuje nepovolené sloupce: ${unknownColumns.join(", ")}. Prosím, exportujte pouze povolené sloupce ze Shoptetu.`
+      );
     }
 
     // Check if file has data
@@ -54,7 +74,7 @@ export class ShoptetAdapter implements PlatformAdapter {
       return !hasShortDesc && !hasDesc && !hasName;
     }).length;
 
-    if (emptyRowsCount > 0) {
+    if (emptyRowsCount > 0 && sampleRows.length > 0) {
       const percentage = Math.round((emptyRowsCount / sampleRows.length) * 100);
       if (emptyRowsCount === sampleRows.length) {
         errors.push(
@@ -67,13 +87,13 @@ export class ShoptetAdapter implements PlatformAdapter {
       }
     }
 
-    // Warnings for potential issues
+    // Info about existing columns
     const hasFilteringColumns = headers.some((h) =>
       h.startsWith(SHOPTET_FILTERING_PREFIX)
     );
     if (hasFilteringColumns) {
       warnings.push(
-        "Soubor již obsahuje filteringProperty sloupce. Tyto budou vymazány a nahrazeny novými."
+        "Soubor již obsahuje filteringProperty sloupce. Nové hodnoty budou přidány k existujícím."
       );
     }
 
@@ -82,7 +102,7 @@ export class ShoptetAdapter implements PlatformAdapter {
     );
     if (hasTextPropertyColumns) {
       warnings.push(
-        "Soubor již obsahuje textProperty sloupce. Tyto budou vymazány a nahrazeny novými."
+        "Soubor již obsahuje textProperty sloupce. Nové hodnoty budou přidány k existujícím."
       );
     }
 
@@ -121,47 +141,38 @@ export class ShoptetAdapter implements PlatformAdapter {
   ): Record<string, unknown>[] {
     const output: Record<string, unknown>[] = [];
 
-    // Identify columns to clear if clearExistingProperties is true
-    const columnsToSkip = new Set<string>();
-    if (config.clearExistingProperties) {
-      for (const header of originalData.headers) {
-        if (header.startsWith(SHOPTET_FILTERING_PREFIX)) {
-          columnsToSkip.add(header);
-        }
-        if (header.startsWith(SHOPTET_TEXT_PROPERTY_PREFIX)) {
-          columnsToSkip.add(header);
-        }
-      }
-    }
+    // Get existing filtering columns
+    const existingFilteringColumns = originalData.headers.filter((h) =>
+      h.startsWith(SHOPTET_FILTERING_PREFIX)
+    );
 
     // Create output rows
     for (const enrichedRow of enrichedRows) {
       const outputRow: Record<string, unknown> = {};
 
-      // Copy original values (except columns to clear)
+      // Copy all original values (keep existing properties)
       for (const header of originalData.headers) {
-        if (columnsToSkip.has(header)) {
-          outputRow[header] = ""; // Clear existing property columns
-        } else {
-          outputRow[header] = enrichedRow[header] ?? "";
-        }
+        outputRow[header] = enrichedRow[header] ?? "";
       }
 
-      // Add filtering properties
+      // Add new filtering properties (with unique column names)
       if (config.generateFiltering && enrichedRow.aiResult?.filtering) {
-        // Limit to max params
         const filteringProps = enrichedRow.aiResult.filtering.slice(0, config.maxFilteringParams);
         for (const prop of filteringProps) {
           const columnName = `${SHOPTET_FILTERING_PREFIX}${prop.name}`;
-          outputRow[columnName] = prop.value;
+          // Only add if this column doesn't exist or is empty
+          if (!existingFilteringColumns.includes(columnName) || !outputRow[columnName]) {
+            outputRow[columnName] = prop.value;
+          }
         }
       }
 
-      // Add text properties starting from textProperty
+      // Add new text properties starting from first available index
       if (config.generateTextProperties && enrichedRow.aiResult?.text) {
-        // Limit to max params
         const textProps = enrichedRow.aiResult.text.slice(0, config.maxTextParams);
-        let textPropertyIndex = 1;
+
+        // Find the next available textProperty index
+        let textPropertyIndex = this.findNextTextPropertyColumn(enrichedRow, originalData.headers);
 
         for (const prop of textProps) {
           const columnName =

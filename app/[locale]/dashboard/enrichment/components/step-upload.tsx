@@ -12,10 +12,12 @@ import {
 } from "@/components/ui/select";
 import { Label } from "@/components/ui/label";
 import { FileDropzone } from "./file-dropzone";
+import { ExportInstructionsModal } from "./export-instructions-modal";
 import { parseFile } from "../actions";
 import { toast } from "sonner";
-import { Loader2, ArrowRight, AlertCircle } from "lucide-react";
+import { Loader2, ArrowRight, AlertCircle, Info } from "lucide-react";
 import type { Platform } from "@/lib/enrichment/types";
+import { SHOPTET_REQUIRED_HEADERS } from "@/lib/enrichment/types";
 import { useTranslations } from "next-intl";
 
 export function StepUpload() {
@@ -113,6 +115,24 @@ export function StepUpload() {
           {t("platformDescription")}
         </p>
       </div>
+
+      {/* Required columns info */}
+      {platform === "shoptet" && (
+        <div className="bg-blue-500/10 border border-blue-500/20 rounded-lg p-4">
+          <div className="flex items-start gap-2">
+            <Info className="h-5 w-5 text-blue-600 mt-0.5" />
+            <div className="flex-1">
+              <p className="font-medium text-blue-600">{t("requiredColumnsInfo")}</p>
+              <p className="text-sm text-blue-600/80 mt-1">
+                {t("requiredColumnsList")}: <span className="font-mono">{SHOPTET_REQUIRED_HEADERS.join(", ")}</span>
+              </p>
+              <div className="mt-3">
+                <ExportInstructionsModal />
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* File Upload */}
       <div className="space-y-2">

@@ -12,7 +12,8 @@
       "Bash(npm run build:*)",
       "Bash(npx tsc:*)",
       "Bash(git config:*)",
-      "Bash(cmdkey /delete:git:https://github.com)"
+      "Bash(cmdkey /delete:git:https://github.com)",
+      "Bash(npx next build)"
     ],
     "deny": []
   }
