@@ -105,6 +105,18 @@ The project uses Prisma ORM with PostgreSQL by default. You can change the datab
 - CSS variables for theming
 - Dark mode support
 
+## Deployment
+
+The application is deployed on Vercel:
+
+**Production URL:** [https://shoptet-tool.vercel.app/dashboard](https://shoptet-tool.vercel.app/dashboard)
+
+### Vercel Deployment
+
+1. Connect your GitHub repository to Vercel
+2. Configure environment variables in Vercel dashboard
+3. Deploy automatically on push to `main` branch
+
 ## License
 
 MIT
