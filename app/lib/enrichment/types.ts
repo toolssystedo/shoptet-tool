@@ -13,6 +13,15 @@ export type SourceColumn =
   | "manufacturer"
   | "supplier";
 
+// Generation mode for AI
+export type GenerationMode = "strict" | "expand";
+
+// Existing attributes for category schema injection
+export interface ExistingAttributes {
+  filtering: string[]; // List of existing filtering parameter names in category
+  text: string[]; // List of existing text parameter keys in category
+}
+
 // Enrichment configuration
 export interface EnrichmentConfig {
   platform: Platform;
@@ -20,10 +29,15 @@ export interface EnrichmentConfig {
   generateTextProperties: boolean;
   filteringInstructions: string;
   textPropertyInstructions: string;
+  productContext: string; // Custom context about the products (e.g. "auto parts for Škoda")
+  generationMode: GenerationMode; // "strict" = only specified params, "expand" = AI can add more
   sourceColumns: SourceColumn[];
   maxFilteringParams: number;
   maxTextParams: number;
   clearExistingProperties: boolean;
+  // Category schema injection for parameter unification
+  categoryName?: string;
+  existingAttributes?: ExistingAttributes;
 }
 
 // Parsed file data
@@ -189,6 +203,18 @@ export const SHOPTET_ALLOWED_COLUMNS = [
   "categoryText3",
   "categoryText4",
   "categoryText5",
+  // Image columns (optional)
+  "defaultImage",
+  "image",
+  "image2",
+  "image3",
+  "image4",
+  "image5",
+  "image6",
+  "image7",
+  "image8",
+  "image9",
+  "image10",
   // Optional - used by AI for analysis
   "weight",
   "warranty",

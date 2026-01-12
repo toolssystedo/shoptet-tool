@@ -197,3 +197,35 @@ export function countParams(row: EnrichedRow): { filtering: number; text: number
   const text = row.aiResult?.text.length || 0;
   return { filtering, text, total: filtering + text };
 }
+
+/**
+ * Removes HTML tags from a string and returns plain text.
+ * Also decodes common HTML entities.
+ */
+export function stripHtml(html: string | undefined | null): string {
+  if (!html) return "";
+
+  // Remove HTML tags
+  let text = html.replace(/<[^>]*>/g, " ");
+
+  // Decode common HTML entities
+  text = text
+    .replace(/&nbsp;/g, " ")
+    .replace(/&amp;/g, "&")
+    .replace(/&lt;/g, "<")
+    .replace(/&gt;/g, ">")
+    .replace(/&quot;/g, '"')
+    .replace(/&#39;/g, "'")
+    .replace(/&apos;/g, "'")
+    .replace(/&mdash;/g, "—")
+    .replace(/&ndash;/g, "–")
+    .replace(/&hellip;/g, "...")
+    .replace(/&copy;/g, "©")
+    .replace(/&reg;/g, "®")
+    .replace(/&trade;/g, "™");
+
+  // Collapse multiple spaces into one
+  text = text.replace(/\s+/g, " ").trim();
+
+  return text;
+}

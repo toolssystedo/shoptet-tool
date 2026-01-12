@@ -29,6 +29,7 @@ import {
   formatPrice,
   truncateText,
   countParams,
+  stripHtml,
 } from "@/lib/enrichment/category-utils";
 import { generateOutputFile } from "../actions";
 import type { EnrichedRow } from "@/lib/enrichment/types";
@@ -361,7 +362,7 @@ export function ResultsEditor() {
                               )}
                             </div>
                             <p className="text-xs text-muted-foreground mt-1 line-clamp-1">
-                              {product.shortDescription || "Bez popisu"}
+                              {stripHtml(product.shortDescription) || "Bez popisu"}
                             </p>
                           </div>
 

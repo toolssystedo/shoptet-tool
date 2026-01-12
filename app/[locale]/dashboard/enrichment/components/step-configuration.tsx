@@ -7,7 +7,8 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Input } from "@/components/ui/input";
 import { ArrowLeft, ArrowRight } from "lucide-react";
-import type { SourceColumn } from "@/lib/enrichment/types";
+import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
+import type { SourceColumn, GenerationMode } from "@/lib/enrichment/types";
 import { useTranslations } from "next-intl";
 
 // Source column IDs for iteration
@@ -185,6 +186,26 @@ export function StepConfiguration() {
         </div>
       </div>
 
+      {/* Product Context */}
+      <div className="space-y-4">
+        <div>
+          <h3 className="text-lg font-medium">{t("productContext")}</h3>
+          <p className="text-sm text-muted-foreground">
+            {t("productContextDescription")}
+          </p>
+        </div>
+
+        <div className="space-y-2">
+          <Textarea
+            id="productContext"
+            placeholder={t("productContextPlaceholder")}
+            value={config.productContext}
+            onChange={(e) => setConfig({ productContext: e.target.value })}
+            rows={3}
+          />
+        </div>
+      </div>
+
       {/* Custom Instructions */}
       <div className="space-y-4">
         <div>
@@ -233,6 +254,45 @@ export function StepConfiguration() {
             </p>
           </div>
         )}
+      </div>
+
+      {/* Generation Mode */}
+      <div className="space-y-4">
+        <div>
+          <h3 className="text-lg font-medium">{t("generationMode")}</h3>
+          <p className="text-sm text-muted-foreground">
+            {t("generationModeDescription")}
+          </p>
+        </div>
+
+        <RadioGroup
+          value={config.generationMode}
+          onValueChange={(value) => setConfig({ generationMode: value as GenerationMode })}
+          className="space-y-3"
+        >
+          <div className="flex items-start space-x-3">
+            <RadioGroupItem value="strict" id="strict" className="mt-1" />
+            <div className="space-y-1">
+              <Label htmlFor="strict" className="font-medium cursor-pointer">
+                {t("generationModeStrict")}
+              </Label>
+              <p className="text-sm text-muted-foreground">
+                {t("generationModeStrictDescription")}
+              </p>
+            </div>
+          </div>
+          <div className="flex items-start space-x-3">
+            <RadioGroupItem value="expand" id="expand" className="mt-1" />
+            <div className="space-y-1">
+              <Label htmlFor="expand" className="font-medium cursor-pointer">
+                {t("generationModeExpand")}
+              </Label>
+              <p className="text-sm text-muted-foreground">
+                {t("generationModeExpandDescription")}
+              </p>
+            </div>
+          </div>
+        </RadioGroup>
       </div>
 
       {/* Source Column Selection */}

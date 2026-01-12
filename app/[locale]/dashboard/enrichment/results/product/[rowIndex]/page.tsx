@@ -27,6 +27,7 @@ import {
   findCodeColumn,
   formatPrice,
   getProductCategory,
+  stripHtml,
 } from "@/lib/enrichment/category-utils";
 import type { FilteringProperty, TextProperty, AIExtractionResult } from "@/lib/enrichment/types";
 import { toast } from "sonner";
@@ -210,7 +211,7 @@ export default function ProductEditPage() {
 
                   {product.shortDescription && (
                     <p className="text-muted-foreground text-sm">
-                      {product.shortDescription}
+                      {stripHtml(product.shortDescription)}
                     </p>
                   )}
                 </div>

@@ -77,6 +77,8 @@ const initialConfig: EnrichmentConfig = {
   generateTextProperties: true,
   filteringInstructions: "",
   textPropertyInstructions: "",
+  productContext: "",
+  generationMode: "expand", // Default: AI can suggest additional parameters
   sourceColumns: ["name", "shortDescription", "description"],
   maxFilteringParams: 5,
   maxTextParams: 5,
