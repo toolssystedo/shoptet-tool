@@ -11,7 +11,8 @@ import {
   Mail,
   UserCog,
   LogOut,
-  Sparkles
+  Sparkles,
+  Link2
 } from "lucide-react";
 import { Link, usePathname } from "@/i18n/routing";
 import { useSidebar } from "@/lib/stores/sidebar-store";
@@ -38,6 +39,11 @@ const navItems: NavItem[] = [
     titleKey: "nav.enrichment",
     href: "/dashboard/enrichment",
     icon: Sparkles,
+  },
+  {
+    titleKey: "nav.produkty",
+    href: "/dashboard/produkty",
+    icon: Link2,
   },
   {
     titleKey: "nav.profile",
@@ -90,7 +96,7 @@ export function Sidebar() {
           // Desktop behavior
           "lg:translate-x-0",
           // Mobile behavior
-          isCollapsed ? "-translate-x-full lg:translate-x-0 lg:w-16" : "translate-x-0 w-64"
+          isCollapsed ? "-translate-x-full lg:translate-x-0 lg:w-16" : "translate-x-0 w-72"
         )}
       >
         <div className="flex h-full flex-col">

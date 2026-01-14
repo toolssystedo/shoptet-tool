@@ -203,11 +203,23 @@ function lowercaseFirst(str: string): string {
   // List of exceptions that should keep their capitalization
   const exceptions = [
     // Brands & Certifications
-    "BIO", "ISO", "CE", "EU", "USA", "ČR",
+    "BIO",
+    "ISO",
+    "CE",
+    "EU",
+    "USA",
+    "ČR",
     // Common proper nouns in Czech e-commerce
-    "Morava", "Čechy", "Praha", "Brno",
+    "Morava",
+    "Čechy",
+    "Praha",
+    "Brno",
     // Countries
-    "Česká republika", "Francie", "Itálie", "Španělsko", "Německo",
+    "Česká republika",
+    "Francie",
+    "Itálie",
+    "Španělsko",
+    "Německo",
   ];
 
   // Check if the value starts with any exception
@@ -235,33 +247,44 @@ function sanitizeAiOutput(aiJson: AIExtractionResult): AIExtractionResult {
 
     // 1. Fix: If AI left commas in the value (e.g., "bavlna, elastan")
     if (item.value.includes(",")) {
-      const splitted = item.value.split(",").map((v) => v.trim()).filter(Boolean);
+      const splitted = item.value
+        .split(",")
+        .map((v) => v.trim())
+        .filter(Boolean);
       for (const subValue of splitted) {
         cleanFiltering.push({ name: item.name, value: subValue });
       }
     }
     // 2. Fix: If AI left " a " connector (e.g., "červená a bílá")
     else if (item.value.includes(" a ")) {
-      const splitted = item.value.split(" a ").map((v) => v.trim()).filter(Boolean);
+      const splitted = item.value
+        .split(" a ")
+        .map((v) => v.trim())
+        .filter(Boolean);
       for (const subValue of splitted) {
         cleanFiltering.push({ name: item.name, value: subValue });
       }
     }
     // 3. Fix: If AI left " i " connector (e.g., "dřevo i kov")
     else if (item.value.includes(" i ")) {
-      const splitted = item.value.split(" i ").map((v) => v.trim()).filter(Boolean);
+      const splitted = item.value
+        .split(" i ")
+        .map((v) => v.trim())
+        .filter(Boolean);
       for (const subValue of splitted) {
         cleanFiltering.push({ name: item.name, value: subValue });
       }
     }
     // 4. Fix: If AI left " + " connector (e.g., "bavlna + polyester")
     else if (item.value.includes(" + ")) {
-      const splitted = item.value.split(" + ").map((v) => v.trim()).filter(Boolean);
+      const splitted = item.value
+        .split(" + ")
+        .map((v) => v.trim())
+        .filter(Boolean);
       for (const subValue of splitted) {
         cleanFiltering.push({ name: item.name, value: subValue });
       }
-    }
-    else {
+    } else {
       cleanFiltering.push(item);
     }
   }
@@ -456,22 +479,34 @@ function buildSystemPrompt(config: EnrichmentConfig): string {
 
   // Build category schema section if existingAttributes provided
   let categorySchemaSection = "";
-  if (config.existingAttributes && (config.existingAttributes.filtering.length > 0 || config.existingAttributes.text.length > 0)) {
+  if (
+    config.existingAttributes &&
+    (config.existingAttributes.filtering.length > 0 ||
+      config.existingAttributes.text.length > 0)
+  ) {
     categorySchemaSection = `
 ## SCHEMA KATEGORIE (KRITICKY DŮLEŽITÉ)
 Tato kategorie "${config.categoryName || "Neznámá"}" již používá níže uvedené parametry.
 **MUSÍŠ používat PŘESNĚ tyto názvy parametrů**, pokud odpovídají obsahu produktu.
 
-${config.existingAttributes.filtering.length > 0 ? `### Povolené FILTERING parametry:
-${config.existingAttributes.filtering.map(f => `- "${f}"`).join("\n")}
+${
+  config.existingAttributes.filtering.length > 0
+    ? `### Povolené FILTERING parametry:
+${config.existingAttributes.filtering.map((f) => `- "${f}"`).join("\n")}
 
 Používej POUZE tyto názvy pro filtering. Pokud chceš přidat nový filtr, který není v seznamu, nejprve zvaž, zda ho nelze namapovat na existující.
-` : ""}
-${config.existingAttributes.text.length > 0 ? `### Povolené TEXT parametry:
-${config.existingAttributes.text.map(t => `- "${t}"`).join("\n")}
+`
+    : ""
+}
+${
+  config.existingAttributes.text.length > 0
+    ? `### Povolené TEXT parametry:
+${config.existingAttributes.text.map((t) => `- "${t}"`).join("\n")}
 
 Pro textové parametry také preferuj tyto názvy, ale můžeš přidat nové, pokud jsou specifické pro tento produkt.
-` : ""}
+`
+    : ""
+}
 ---
 `;
   }
@@ -535,14 +570,20 @@ function buildUserPrompt(sourceText: string, config: EnrichmentConfig): string {
 
   // 2. REŽIM GENEROVÁNÍ
   if (config.generationMode === "strict") {
-    parts.push(`\n### MÓD: STRICT\nExtrahuj POUZE parametry explicitně uvedené v textu. Nevymýšlej si.`);
+    parts.push(
+      `\n### MÓD: STRICT\nExtrahuj POUZE parametry explicitně uvedené v textu. Nevymýšlej si.`
+    );
   } else {
-    parts.push(`\n### MÓD: EXPAND\nExtrahuj parametry z textu a logicky odvoď chybějící standardní atributy (např. typ produktu), je-li to zřejmé.`);
+    parts.push(
+      `\n### MÓD: EXPAND\nExtrahuj parametry z textu a logicky odvoď chybějící standardní atributy (např. typ produktu), je-li to zřejmé.`
+    );
   }
 
   // 3. SPECIFICKÉ INSTRUKCE OD UŽIVATELE
   if (config.filteringInstructions) {
-    parts.push(`\n**Priority pro FILTERING:**\n${config.filteringInstructions}`);
+    parts.push(
+      `\n**Priority pro FILTERING:**\n${config.filteringInstructions}`
+    );
   }
   if (config.textPropertyInstructions) {
     parts.push(`\n**Priority pro TEXT:**\n${config.textPropertyInstructions}`);
