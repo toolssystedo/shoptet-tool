@@ -17,6 +17,8 @@
     "dashboard": "Přehled",
     "enrichment": "Parametry produktů",
     "produkty": "Související a podobné produkty",
+    "siteAudit": "Audit webu",
+    "contentAudit": "Audit obsahu",
     "profile": "Profil",
     "userManagement": "Správa uživatelů",
     "invitations": "Pozvánky",
@@ -321,5 +323,178 @@
       "exportPathAlt": "Cesta k exportu",
       "importGuideAlt": "Návod na import produktu"
     }
+  },
+  "siteAudit": {
+    "pageTitle": "Technický audit webu",
+    "pageDescription": "Kompletní analýza webu - odkazy, výkon, HTML kvalita, konfigurace a bezpečnost.",
+    "inputTitle": "URL webu",
+    "inputDescription": "Zadejte URL webu, který chcete analyzovat",
+    "startAudit": "Spustit audit",
+    "scanning": "Skenování...",
+    "progress": {
+      "title": "Průběh skenování",
+      "starting": "Spouštím...",
+      "config": "Kontroluji konfiguraci",
+      "sitemap": "Načítám sitemap",
+      "crawling": "Procházím stránky",
+      "checking": "Kontroluji odkazy"
+    },
+    "results": {
+      "noErrors": "Žádné problémy nenalezeny",
+      "errorsFound": "Nalezeno {count} problémů",
+      "pagesScanned": "Stránek",
+      "linksChecked": "Odkazů",
+      "imagesChecked": "Obrázků",
+      "errorsTotal": "Problémů celkem"
+    },
+    "scores": {
+      "title": "Skóre auditu",
+      "overall": "Celkové",
+      "links": "Odkazy",
+      "performance": "Výkon",
+      "html": "HTML",
+      "config": "Konfigurace",
+      "security": "Bezpečnost"
+    },
+    "tooltips": {
+      "overall": "Průměr všech kategorií. 90+ = výborně, 70-89 = dobře, 50-69 = průměrně, pod 50 = potřebuje zlepšení.",
+      "links": "Hodnotí funkčnost odkazů. Penalizovány jsou nefunkční interní/externí odkazy, 404 stránky a nefunkční obrázky.",
+      "performance": "Měří rychlost načítání. Kontroluje počet JS/CSS souborů, lazy loading, render-blocking skripty a velikost stránky.",
+      "html": "Kvalita HTML kódu. Kontroluje nadpisy (H1), alt texty u obrázků, prázdné odkazy a správnou strukturu.",
+      "config": "Technická konfigurace. Kontroluje robots.txt, sitemap.xml, favicon, Open Graph a Twitter Card tagy.",
+      "security": "Bezpečnostní aspekty. Kontroluje HTTPS, smíšený obsah, externí skripty a bezpečnostní hlavičky."
+    },
+    "tabs": {
+      "links": "Odkazy",
+      "performance": "Výkon",
+      "html": "HTML",
+      "config": "Konfigurace",
+      "security": "Bezpečnost"
+    },
+    "errors": {
+      "pages404": "Chybové stránky (404)",
+      "internalLinks404": "Interní odkazy na 404",
+      "brokenImages": "Nefunkční obrázky",
+      "externalLinks404": "Externí odkazy na 404"
+    },
+    "performance": {
+      "too_many_js": "Příliš mnoho JS souborů",
+      "too_many_css": "Příliš mnoho CSS souborů",
+      "unoptimized_image": "Neoptimalizovaný obrázek",
+      "missing_lazy_loading": "Chybí lazy loading",
+      "render_blocking_script": "Blokující skripty v hlavičce",
+      "too_many_webfonts": "Příliš mnoho webfontů",
+      "large_page_size": "Velká velikost stránky"
+    },
+    "html": {
+      "invalid_html": "Nevalidní HTML",
+      "missing_h1": "Chybí H1 nadpis",
+      "duplicate_h1": "Duplicitní H1 nadpis",
+      "heading_hierarchy": "Nesprávná hierarchie nadpisů",
+      "empty_link": "Prázdné odkazy",
+      "missing_alt": "Obrázky bez alt atributu",
+      "deprecated_element": "Zastaralé HTML elementy",
+      "missing_title": "Chybí title",
+      "missing_meta_description": "Chybí meta description"
+    },
+    "config": {
+      "missing_robots": "Chybí robots.txt",
+      "invalid_robots": "Nesprávný robots.txt",
+      "missing_sitemap": "Chybí sitemap.xml",
+      "sitemap_404_urls": "Sitemap obsahuje 404 URL",
+      "sitemap_redirects": "Sitemap obsahuje přesměrování",
+      "outdated_sitemap": "Zastaralý sitemap",
+      "missing_favicon": "Chybí favicon",
+      "missing_og_tags": "Chybí Open Graph tagy",
+      "missing_twitter_cards": "Chybí Twitter Card tagy"
+    },
+    "security": {
+      "mixed_content": "Smíšený obsah (HTTP na HTTPS)",
+      "no_https_redirect": "Chybí HTTPS přesměrování",
+      "untrusted_scripts": "Externí skripty z neznámých zdrojů",
+      "missing_csp": "Chybí Content Security Policy",
+      "missing_x_frame_options": "Chybí X-Frame-Options"
+    },
+    "foundOn": "Nalezeno na",
+    "showMore": "Zobrazit dalších {count}",
+    "showLess": "Zobrazit méně"
+  },
+  "contentAudit": {
+    "pageTitle": "Audit obsahu produktů",
+    "pageDescription": "Analyzujte kvalitu popisů produktů, najděte duplicity a zkontrolujte SEO parametry.",
+    "settings": {
+      "title": "Nastavení analýzy",
+      "description": "Konfigurujte parametry pro analýzu produktů",
+      "language": "Očekávaný jazyk",
+      "minLength": "Minimální délka popisu (znaků)"
+    },
+    "upload": {
+      "title": "Nahrát produktový feed",
+      "description": "Nahrajte XLSX export produktů ze Shoptetu",
+      "productFeed": "Produktový feed",
+      "productFeedDescription": "Nahrajte XLSX export produktů (povinné)",
+      "categoryFeed": "Kategorie feed",
+      "categoryFeedDescription": "Nahrajte XLSX export kategorií (volitelné)",
+      "dragDrop": "Přetáhněte soubor sem",
+      "orClick": "nebo klikněte pro výběr",
+      "optional": "volitelné - pro detailnější analýzu",
+      "selectFile": "Vybrat soubor",
+      "changeFile": "Změnit soubor",
+      "formats": "Podporované formáty: XLSX, XLS",
+      "analyzing": "Analyzuji produkty...",
+      "categories": "kategorií",
+      "withCategoryFeed": "s kategoriemi"
+    },
+    "errors": {
+      "noProducts": "V souboru nebyly nalezeny žádné produkty",
+      "invalidFile": "Nahrajte prosím soubor ve formátu XLSX nebo XLS",
+      "unknown": "Nastala neočekávaná chyba"
+    },
+    "scores": {
+      "title": "Skóre kvality obsahu",
+      "overall": "Celkové",
+      "uniqueness": "Unikátnost",
+      "quality": "Kvalita",
+      "completeness": "Kompletnost",
+      "business": "Obchod",
+      "dataQuality": "Kvalita dat",
+      "stock": "Sklad",
+      "categories": "Kategorie"
+    },
+    "stats": {
+      "products": "produktů",
+      "withDescription": "S popisem",
+      "withShortDesc": "S krátkým popisem",
+      "avgLength": "Ø délka popisu",
+      "withPrice": "S cenou",
+      "inAction": "V akci",
+      "issues": "Problémů",
+      "withImages": "S obrázky",
+      "avgImages": "Ø obrázků",
+      "withEan": "S EAN",
+      "withManufacturer": "S výrobcem",
+      "categories": "Kategorií",
+      "variants": "Variant"
+    },
+    "tabs": {
+      "completeness": "Kompletnost",
+      "dataQuality": "Data",
+      "variants": "Varianty",
+      "stock": "Sklad",
+      "categories": "Kategorie",
+      "duplicates": "Duplicity",
+      "content": "Obsah",
+      "price": "Ceny",
+      "promo": "Akce"
+    },
+    "duplicates": {
+      "exact": "Přesná shoda",
+      "near": "Podobný obsah",
+      "products": "produktů"
+    },
+    "results": {
+      "noIssues": "Žádné problémy nenalezeny"
+    },
+    "showMore": "A dalších {count}..."
   }
 }

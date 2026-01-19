@@ -12,7 +12,9 @@ import {
   UserCog,
   LogOut,
   Sparkles,
-  Link2
+  Link2,
+  Search,
+  FileSearch
 } from "lucide-react";
 import { Link, usePathname } from "@/i18n/routing";
 import { useSidebar } from "@/lib/stores/sidebar-store";
@@ -44,6 +46,16 @@ const navItems: NavItem[] = [
     titleKey: "nav.produkty",
     href: "/dashboard/produkty",
     icon: Link2,
+  },
+  {
+    titleKey: "nav.siteAudit",
+    href: "/dashboard/site-audit",
+    icon: Search,
+  },
+  {
+    titleKey: "nav.contentAudit",
+    href: "/dashboard/content-audit",
+    icon: FileSearch,
   },
   {
     titleKey: "nav.profile",

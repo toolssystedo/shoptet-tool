@@ -17,6 +17,8 @@
     "dashboard": "Dashboard",
     "enrichment": "Product Parameters",
     "produkty": "Related & Alternative Products",
+    "siteAudit": "Site Audit",
+    "contentAudit": "Content Audit",
     "profile": "Profile",
     "userManagement": "User Management",
     "invitations": "Invitations",
@@ -321,5 +323,178 @@
       "exportPathAlt": "Export path",
       "importGuideAlt": "Product import guide"
     }
+  },
+  "siteAudit": {
+    "pageTitle": "Technical Site Audit",
+    "pageDescription": "Complete website analysis - links, performance, HTML quality, configuration and security.",
+    "inputTitle": "Website URL",
+    "inputDescription": "Enter the URL of the website you want to analyze",
+    "startAudit": "Start Audit",
+    "scanning": "Scanning...",
+    "progress": {
+      "title": "Scan Progress",
+      "starting": "Starting...",
+      "config": "Checking configuration",
+      "sitemap": "Loading sitemap",
+      "crawling": "Crawling pages",
+      "checking": "Checking links"
+    },
+    "results": {
+      "noErrors": "No issues found",
+      "errorsFound": "{count} issues found",
+      "pagesScanned": "Pages",
+      "linksChecked": "Links",
+      "imagesChecked": "Images",
+      "errorsTotal": "Total issues"
+    },
+    "scores": {
+      "title": "Audit Scores",
+      "overall": "Overall",
+      "links": "Links",
+      "performance": "Performance",
+      "html": "HTML",
+      "config": "Config",
+      "security": "Security"
+    },
+    "tooltips": {
+      "overall": "Average of all categories. 90+ = excellent, 70-89 = good, 50-69 = average, below 50 = needs improvement.",
+      "links": "Evaluates link functionality. Penalizes broken internal/external links, 404 pages and broken images.",
+      "performance": "Measures loading speed. Checks JS/CSS file count, lazy loading, render-blocking scripts and page size.",
+      "html": "HTML code quality. Checks headings (H1), image alt texts, empty links and proper structure.",
+      "config": "Technical configuration. Checks robots.txt, sitemap.xml, favicon, Open Graph and Twitter Card tags.",
+      "security": "Security aspects. Checks HTTPS, mixed content, external scripts and security headers."
+    },
+    "tabs": {
+      "links": "Links",
+      "performance": "Performance",
+      "html": "HTML",
+      "config": "Config",
+      "security": "Security"
+    },
+    "errors": {
+      "pages404": "Error pages (404)",
+      "internalLinks404": "Internal links to 404",
+      "brokenImages": "Broken images",
+      "externalLinks404": "External links to 404"
+    },
+    "performance": {
+      "too_many_js": "Too many JS files",
+      "too_many_css": "Too many CSS files",
+      "unoptimized_image": "Unoptimized image",
+      "missing_lazy_loading": "Missing lazy loading",
+      "render_blocking_script": "Render-blocking scripts in head",
+      "too_many_webfonts": "Too many webfonts",
+      "large_page_size": "Large page size"
+    },
+    "html": {
+      "invalid_html": "Invalid HTML",
+      "missing_h1": "Missing H1 heading",
+      "duplicate_h1": "Duplicate H1 heading",
+      "heading_hierarchy": "Incorrect heading hierarchy",
+      "empty_link": "Empty links",
+      "missing_alt": "Images without alt attribute",
+      "deprecated_element": "Deprecated HTML elements",
+      "missing_title": "Missing title",
+      "missing_meta_description": "Missing meta description"
+    },
+    "config": {
+      "missing_robots": "Missing robots.txt",
+      "invalid_robots": "Invalid robots.txt",
+      "missing_sitemap": "Missing sitemap.xml",
+      "sitemap_404_urls": "Sitemap contains 404 URLs",
+      "sitemap_redirects": "Sitemap contains redirects",
+      "outdated_sitemap": "Outdated sitemap",
+      "missing_favicon": "Missing favicon",
+      "missing_og_tags": "Missing Open Graph tags",
+      "missing_twitter_cards": "Missing Twitter Card tags"
+    },
+    "security": {
+      "mixed_content": "Mixed content (HTTP on HTTPS)",
+      "no_https_redirect": "Missing HTTPS redirect",
+      "untrusted_scripts": "External scripts from unknown sources",
+      "missing_csp": "Missing Content Security Policy",
+      "missing_x_frame_options": "Missing X-Frame-Options"
+    },
+    "foundOn": "Found on",
+    "showMore": "Show {count} more",
+    "showLess": "Show less"
+  },
+  "contentAudit": {
+    "pageTitle": "Product Content Audit",
+    "pageDescription": "Analyze product description quality, find duplicates, and check SEO parameters.",
+    "settings": {
+      "title": "Analysis Settings",
+      "description": "Configure parameters for product analysis",
+      "language": "Expected language",
+      "minLength": "Minimum description length (chars)"
+    },
+    "upload": {
+      "title": "Upload Product Feed",
+      "description": "Upload XLSX product export from Shoptet",
+      "productFeed": "Product Feed",
+      "productFeedDescription": "Upload XLSX product export (required)",
+      "categoryFeed": "Category Feed",
+      "categoryFeedDescription": "Upload XLSX category export (optional)",
+      "dragDrop": "Drag & drop file here",
+      "orClick": "or click to browse",
+      "optional": "optional - for detailed analysis",
+      "selectFile": "Select file",
+      "changeFile": "Change file",
+      "formats": "Supported formats: XLSX, XLS",
+      "analyzing": "Analyzing products...",
+      "categories": "categories",
+      "withCategoryFeed": "with categories"
+    },
+    "errors": {
+      "noProducts": "No products found in the file",
+      "invalidFile": "Please upload a file in XLSX or XLS format",
+      "unknown": "An unexpected error occurred"
+    },
+    "scores": {
+      "title": "Content Quality Scores",
+      "overall": "Overall",
+      "uniqueness": "Uniqueness",
+      "quality": "Quality",
+      "completeness": "Completeness",
+      "business": "Business",
+      "dataQuality": "Data Quality",
+      "stock": "Stock",
+      "categories": "Categories"
+    },
+    "stats": {
+      "products": "products",
+      "withDescription": "With description",
+      "withShortDesc": "With short description",
+      "avgLength": "Avg description length",
+      "withPrice": "With price",
+      "inAction": "On sale",
+      "issues": "Issues",
+      "withImages": "With images",
+      "avgImages": "Avg images",
+      "withEan": "With EAN",
+      "withManufacturer": "With manufacturer",
+      "categories": "Categories",
+      "variants": "Variants"
+    },
+    "tabs": {
+      "completeness": "Completeness",
+      "dataQuality": "Data",
+      "variants": "Variants",
+      "stock": "Stock",
+      "categories": "Categories",
+      "duplicates": "Duplicates",
+      "content": "Content",
+      "price": "Prices",
+      "promo": "Promotions"
+    },
+    "duplicates": {
+      "exact": "Exact match",
+      "near": "Similar content",
+      "products": "products"
+    },
+    "results": {
+      "noIssues": "No issues found"
+    },
+    "showMore": "And {count} more..."
   }
 }
