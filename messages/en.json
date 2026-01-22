@@ -19,6 +19,7 @@
     "produkty": "Related & Alternative Products",
     "siteAudit": "Site Audit",
     "contentAudit": "Content Audit",
+    "categoryMapper": "Category Mapping",
     "profile": "Profile",
     "userManagement": "User Management",
     "invitations": "Invitations",
@@ -122,6 +123,7 @@
       "generationModeStrictDescription": "AI extracts only parameters you explicitly listed in the instructions above.",
       "generationModeExpand": "Expand with AI suggestions",
       "generationModeExpandDescription": "AI extracts specified parameters and additionally suggests other relevant parameters found in descriptions.",
+      "strictModeRequiresInstructions": "In \"Only specified parameters\" mode, you must enter at least one parameter in the instructions field above.",
       "startProcessing": "Start Processing"
     },
     "processing": {
@@ -434,20 +436,21 @@
       "productFeed": "Product Feed",
       "productFeedDescription": "Upload XLSX product export (required)",
       "categoryFeed": "Category Feed",
-      "categoryFeedDescription": "Upload XLSX category export (optional)",
+      "categoryFeedDescription": "Upload category export in XLSX, CSV or XML format (optional)",
       "dragDrop": "Drag & drop file here",
       "orClick": "or click to browse",
       "optional": "optional - for detailed analysis",
       "selectFile": "Select file",
       "changeFile": "Change file",
       "formats": "Supported formats: XLSX, XLS",
+      "categoryFormats": "Supported formats: XLSX, XLS, CSV, XML",
       "analyzing": "Analyzing products...",
       "categories": "categories",
       "withCategoryFeed": "with categories"
     },
     "errors": {
       "noProducts": "No products found in the file",
-      "invalidFile": "Please upload a file in XLSX or XLS format",
+      "invalidFile": "Invalid file format",
       "unknown": "An unexpected error occurred"
     },
     "scores": {
@@ -496,5 +499,50 @@
       "noIssues": "No issues found"
     },
     "showMore": "And {count} more..."
+  },
+  "categoryMapper": {
+    "pageTitle": "Category Mapping",
+    "pageDescription": "Automatically assign product categories for Heureka, Zboží.cz, Google Shopping and Glami.",
+    "platforms": {
+      "title": "Select Platforms",
+      "description": "Choose which platforms you want to map categories for"
+    },
+    "options": {
+      "useAI": "Use AI for mapping",
+      "overwrite": "Overwrite existing categories"
+    },
+    "upload": {
+      "title": "Upload Product Feed",
+      "description": "Upload an XLSX file with products",
+      "dragDrop": "Drag & drop file here",
+      "orClick": "or click to browse",
+      "selectFile": "Select file",
+      "changeFile": "Change file",
+      "formats": "Supported formats: XLSX, XLS",
+      "productsFound": "products found"
+    },
+    "process": {
+      "ready": "{count} products ready for mapping",
+      "platforms": "Platforms",
+      "start": "Start Mapping",
+      "processing": "Mapping...",
+      "progress": "Processed {percent}%"
+    },
+    "results": {
+      "title": "Mapping Results",
+      "description": "Successfully mapped {count} products",
+      "export": "Export XLSX",
+      "table": {
+        "code": "Code",
+        "name": "Name",
+        "category": "Category",
+        "showing": "Showing {shown} of {total} products"
+      }
+    },
+    "errors": {
+      "parseError": "Failed to parse file",
+      "invalidFile": "Please upload a file in XLSX or XLS format",
+      "mappingError": "Error while mapping categories"
+    }
   }
 }

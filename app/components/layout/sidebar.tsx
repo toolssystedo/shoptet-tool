@@ -14,7 +14,8 @@ import {
   Sparkles,
   Link2,
   Search,
-  FileSearch
+  FileSearch,
+  FolderTree,
 } from "lucide-react";
 import { Link, usePathname } from "@/i18n/routing";
 import { useSidebar } from "@/lib/stores/sidebar-store";
@@ -56,6 +57,11 @@ const navItems: NavItem[] = [
     titleKey: "nav.contentAudit",
     href: "/dashboard/content-audit",
     icon: FileSearch,
+  },
+  {
+    titleKey: "nav.categoryMapper",
+    href: "/dashboard/category-mapper",
+    icon: FolderTree,
   },
   {
     titleKey: "nav.profile",

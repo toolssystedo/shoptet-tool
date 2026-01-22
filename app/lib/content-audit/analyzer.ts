@@ -411,21 +411,122 @@ function parseFilterParameters(row: Record<string, any>): string[] {
 
 // ============= CATEGORY FILE PARSING =============
 
+/**
+ * Parse CSV content to array of objects
+ */
+function parseCsvContent(content: string): Record<string, any>[] {
+  const lines = content.split(/\r?\n/).filter(line => line.trim());
+  if (lines.length < 2) return [];
+
+  // Detect delimiter (semicolon or comma)
+  const firstLine = lines[0];
+  const delimiter = firstLine.includes(';') ? ';' : ',';
+
+  // Parse header
+  const headers = firstLine.split(delimiter).map(h => h.trim().replace(/^["']|["']$/g, ''));
+
+  // Parse rows
+  const data: Record<string, any>[] = [];
+  for (let i = 1; i < lines.length; i++) {
+    const values = lines[i].split(delimiter).map(v => v.trim().replace(/^["']|["']$/g, ''));
+    const row: Record<string, any> = {};
+    headers.forEach((header, idx) => {
+      row[header] = values[idx] || '';
+    });
+    data.push(row);
+  }
+
+  return data;
+}
+
+/**
+ * Parse XML content to array of category objects
+ * Supports common XML formats: <categories><category>...</category></categories>
+ */
+function parseXmlCategories(content: string): Record<string, any>[] {
+  const data: Record<string, any>[] = [];
+
+  // Simple XML parsing using regex (works for flat category structures)
+  // Match <category> or <CATEGORY> or <item> elements
+  const categoryRegex = /<(category|CATEGORY|item|ITEM|SHOPITEM)[^>]*>([\s\S]*?)<\/\1>/gi;
+
+  let match;
+  while ((match = categoryRegex.exec(content)) !== null) {
+    const categoryContent = match[2];
+    const row: Record<string, any> = {};
+
+    // Extract common fields from XML
+    const fields = [
+      // ID/Code fields
+      { keys: ['code', 'CODE', 'id', 'ID', 'guid', 'GUID', 'CATEGORY_ID'], target: 'code' },
+      // Name fields
+      { keys: ['name', 'NAME', 'CATEGORY_NAME', 'categoryName', 'Název', 'Jméno'], target: 'name' },
+      // Parent fields
+      { keys: ['parentCode', 'PARENT_CODE', 'parentGuid', 'PARENT_GUID', 'parent', 'PARENT', 'parentId', 'PARENT_ID'], target: 'parentCode' },
+      // Path fields
+      { keys: ['path', 'PATH', 'categoryText', 'CATEGORY_TEXT', 'CATEGORY_FULLNAME', 'fullPath', 'Cesta'], target: 'path' },
+      // Description fields
+      { keys: ['description', 'DESCRIPTION', 'desc', 'DESC', 'Popis'], target: 'description' },
+      // Image fields
+      { keys: ['image', 'IMAGE', 'img', 'IMG', 'imgUrl', 'Obrázek'], target: 'image' },
+      // Active fields
+      { keys: ['active', 'ACTIVE', 'visible', 'VISIBLE', 'isActive', 'Aktivní'], target: 'active' },
+      // Product count
+      { keys: ['productCount', 'PRODUCT_COUNT', 'count', 'COUNT'], target: 'productCount' },
+      // Order/Priority
+      { keys: ['order', 'ORDER', 'priority', 'PRIORITY', 'Pořadí'], target: 'order' },
+    ];
+
+    for (const field of fields) {
+      for (const key of field.keys) {
+        const tagRegex = new RegExp(`<${key}[^>]*>([^<]*)</${key}>`, 'i');
+        const tagMatch = tagRegex.exec(categoryContent);
+        if (tagMatch && tagMatch[1].trim()) {
+          row[field.target] = tagMatch[1].trim();
+          break;
+        }
+      }
+    }
+
+    if (row.code || row.name) {
+      data.push(row);
+    }
+  }
+
+  return data;
+}
+
 export function parseCategoryFile(file: ArrayBuffer, fileName: string): CategoryData[] {
   const categories: CategoryData[] = [];
+  const lowerName = fileName.toLowerCase();
 
   try {
-    const workbook = XLSX.read(file, { type: 'array' });
-    const sheetName = workbook.SheetNames[0];
-    const worksheet = workbook.Sheets[sheetName];
-    const data = XLSX.utils.sheet_to_json<Record<string, any>>(worksheet);
+    let data: Record<string, any>[] = [];
+
+    if (lowerName.endsWith('.csv')) {
+      // Parse CSV
+      const decoder = new TextDecoder('utf-8');
+      const content = decoder.decode(file);
+      data = parseCsvContent(content);
+    } else if (lowerName.endsWith('.xml')) {
+      // Parse XML
+      const decoder = new TextDecoder('utf-8');
+      const content = decoder.decode(file);
+      data = parseXmlCategories(content);
+    } else {
+      // Parse Excel (xlsx/xls)
+      const workbook = XLSX.read(file, { type: 'array' });
+      const sheetName = workbook.SheetNames[0];
+      const worksheet = workbook.Sheets[sheetName];
+      data = XLSX.utils.sheet_to_json<Record<string, any>>(worksheet);
+    }
 
     for (const row of data) {
       const category: CategoryData = {
-        code: row['code'] || row['CODE'] || row['Kód'] || row['guid'] || row['GUID'] || '',
-        name: row['name'] || row['NAME'] || row['Název'] || row['Jméno'] || '',
-        parentCode: row['parentCode'] || row['PARENT_CODE'] || row['parentGuid'] || row['PARENT_GUID'] || row['Rodičovská kategorie'] || row['Kód rodiče'] || '',
-        path: row['path'] || row['PATH'] || row['Cesta'] || row['categoryText'] || '',
+        code: row['code'] || row['CODE'] || row['Kód'] || row['guid'] || row['GUID'] || row['id'] || row['ID'] || row['CATEGORY_ID'] || '',
+        name: row['name'] || row['NAME'] || row['Název'] || row['Jméno'] || row['CATEGORY_NAME'] || '',
+        parentCode: row['parentCode'] || row['PARENT_CODE'] || row['parentGuid'] || row['PARENT_GUID'] || row['Rodičovská kategorie'] || row['Kód rodiče'] || row['parent'] || row['PARENT'] || '',
+        path: row['path'] || row['PATH'] || row['Cesta'] || row['categoryText'] || row['CATEGORY_FULLNAME'] || '',
         description: row['description'] || row['DESCRIPTION'] || row['Popis'] || '',
         image: row['image'] || row['IMAGE'] || row['Obrázek'] || '',
         isActive: parseBoolean(row['active'] || row['ACTIVE'] || row['Aktivní'] || row['visible'] || row['VISIBLE'] || 'true'),

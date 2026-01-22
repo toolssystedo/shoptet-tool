@@ -51,9 +51,27 @@ export function StepConfiguration() {
     }
   };
 
+  // In strict mode, require instructions for enabled generation types
+  const hasRequiredInstructions = () => {
+    if (config.generationMode === "expand") {
+      // In expand mode, AI can suggest parameters even without instructions
+      return true;
+    }
+    // In strict mode, at least one of the enabled types must have instructions
+    const filteringOk = !config.generateFiltering || config.filteringInstructions.trim().length > 0;
+    const textOk = !config.generateTextProperties || config.textPropertyInstructions.trim().length > 0;
+
+    // At least one must have instructions if that type is enabled
+    if (config.generateFiltering && config.generateTextProperties) {
+      return filteringOk || textOk; // At least one must have instructions
+    }
+    return filteringOk && textOk; // The enabled one must have instructions
+  };
+
   const canContinue =
     (config.generateFiltering || config.generateTextProperties) &&
-    config.sourceColumns.length > 0;
+    config.sourceColumns.length > 0 &&
+    hasRequiredInstructions();
 
   // Check which columns exist in the file
   const availableColumns = new Set(
@@ -329,6 +347,13 @@ export function StepConfiguration() {
       </div>
 
       {/* Navigation */}
+      {/* Warning when strict mode but no instructions */}
+      {config.generationMode === "strict" && !hasRequiredInstructions() && (
+        <div className="p-3 rounded-md bg-yellow-500/10 border border-yellow-500/20 text-yellow-700 dark:text-yellow-400 text-sm">
+          {t("strictModeRequiresInstructions")}
+        </div>
+      )}
+
       <div className="flex justify-between pt-4">
         <Button variant="outline" onClick={prevStep}>
           <ArrowLeft className="mr-2 h-4 w-4" />

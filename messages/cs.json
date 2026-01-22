@@ -19,6 +19,7 @@
     "produkty": "Související a podobné produkty",
     "siteAudit": "Audit webu",
     "contentAudit": "Audit obsahu",
+    "categoryMapper": "Mapování kategorií",
     "profile": "Profil",
     "userManagement": "Správa uživatelů",
     "invitations": "Pozvánky",
@@ -122,6 +123,7 @@
       "generationModeStrictDescription": "AI extrahuje pouze parametry, které jste explicitně zadali v instrukcích výše.",
       "generationModeExpand": "Rozšířit o návrhy AI",
       "generationModeExpandDescription": "AI extrahuje zadané parametry a navíc navrhne další relevantní parametry, které najde v popisech.",
+      "strictModeRequiresInstructions": "V režimu \"Pouze zadané parametry\" musíte zadat alespoň jeden parametr do pole instrukcí výše.",
       "startProcessing": "Spustit zpracování"
     },
     "processing": {
@@ -434,20 +436,21 @@
       "productFeed": "Produktový feed",
       "productFeedDescription": "Nahrajte XLSX export produktů (povinné)",
       "categoryFeed": "Kategorie feed",
-      "categoryFeedDescription": "Nahrajte XLSX export kategorií (volitelné)",
+      "categoryFeedDescription": "Nahrajte export kategorií ve formátu XLSX, CSV nebo XML (volitelné)",
       "dragDrop": "Přetáhněte soubor sem",
       "orClick": "nebo klikněte pro výběr",
       "optional": "volitelné - pro detailnější analýzu",
       "selectFile": "Vybrat soubor",
       "changeFile": "Změnit soubor",
       "formats": "Podporované formáty: XLSX, XLS",
+      "categoryFormats": "Podporované formáty: XLSX, XLS, CSV, XML",
       "analyzing": "Analyzuji produkty...",
       "categories": "kategorií",
       "withCategoryFeed": "s kategoriemi"
     },
     "errors": {
       "noProducts": "V souboru nebyly nalezeny žádné produkty",
-      "invalidFile": "Nahrajte prosím soubor ve formátu XLSX nebo XLS",
+      "invalidFile": "Neplatný formát souboru",
       "unknown": "Nastala neočekávaná chyba"
     },
     "scores": {
@@ -496,5 +499,50 @@
       "noIssues": "Žádné problémy nenalezeny"
     },
     "showMore": "A dalších {count}..."
+  },
+  "categoryMapper": {
+    "pageTitle": "Mapování kategorií",
+    "pageDescription": "Automaticky přiřaďte kategorie produktům pro Heureka, Zboží.cz, Google Shopping a Glami.",
+    "platforms": {
+      "title": "Vyberte platformy",
+      "description": "Zvolte, pro které platformy chcete mapovat kategorie"
+    },
+    "options": {
+      "useAI": "Použít AI pro mapování",
+      "overwrite": "Přepsat existující kategorie"
+    },
+    "upload": {
+      "title": "Nahrát produktový feed",
+      "description": "Nahrajte XLSX soubor s produkty",
+      "dragDrop": "Přetáhněte soubor sem",
+      "orClick": "nebo klikněte pro výběr",
+      "selectFile": "Vybrat soubor",
+      "changeFile": "Změnit soubor",
+      "formats": "Podporované formáty: XLSX, XLS",
+      "productsFound": "produktů nalezeno"
+    },
+    "process": {
+      "ready": "Připraveno {count} produktů k mapování",
+      "platforms": "Platformy",
+      "start": "Spustit mapování",
+      "processing": "Mapuji...",
+      "progress": "Zpracováno {percent}%"
+    },
+    "results": {
+      "title": "Výsledky mapování",
+      "description": "Úspěšně namapováno {count} produktů",
+      "export": "Exportovat XLSX",
+      "table": {
+        "code": "Kód",
+        "name": "Název",
+        "category": "Kategorie",
+        "showing": "Zobrazeno {shown} z {total} produktů"
+      }
+    },
+    "errors": {
+      "parseError": "Nepodařilo se zpracovat soubor",
+      "invalidFile": "Nahrajte prosím soubor ve formátu XLSX nebo XLS",
+      "mappingError": "Chyba při mapování kategorií"
+    }
   }
 }

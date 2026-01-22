@@ -152,7 +152,8 @@ export function ContentAuditClient() {
     setIsDraggingCategory(false);
 
     const file = e.dataTransfer.files[0];
-    if (file && (file.name.endsWith('.xlsx') || file.name.endsWith('.xls'))) {
+    const validExtensions = ['.xlsx', '.xls', '.csv', '.xml'];
+    if (file && validExtensions.some(ext => file.name.toLowerCase().endsWith(ext))) {
       handleCategoryFile(file);
     } else {
       setError(t("errors.invalidFile"));
@@ -315,7 +316,7 @@ export function ContentAuditClient() {
                   </p>
                   <input
                     type="file"
-                    accept=".xlsx,.xls"
+                    accept=".xlsx,.xls,.csv,.xml"
                     className="hidden"
                     id="category-file-input"
                     onChange={handleCategoryFileInput}
@@ -333,7 +334,7 @@ export function ContentAuditClient() {
                   <p className="text-xs text-muted-foreground mb-3">{t("upload.optional")}</p>
                   <input
                     type="file"
-                    accept=".xlsx,.xls"
+                    accept=".xlsx,.xls,.csv,.xml"
                     className="hidden"
                     id="category-file-input"
                     onChange={handleCategoryFileInput}
@@ -344,7 +345,7 @@ export function ContentAuditClient() {
                     </label>
                   </Button>
                   <p className="text-xs text-muted-foreground mt-3">
-                    {t("upload.formats")}
+                    {t("upload.categoryFormats")}
                   </p>
                 </>
               )}
