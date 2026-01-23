@@ -30,7 +30,9 @@ import {
   Shield,
   TrendingUp,
   HelpCircle,
+  Download,
 } from "lucide-react";
+import { exportAuditToPdf, exportAuditWithAIAnalysis, type AIAnalysis } from "@/lib/site-audit/pdf-export";
 import type { AuditReport, CrawlResult, PerformanceIssue, HtmlIssue, ConfigIssue, SecurityIssue } from "@/lib/site-audit/crawler";
 
 interface ProgressData {
@@ -96,6 +98,35 @@ export function SiteAuditClient() {
   const [progress, setProgress] = useState<ProgressData | null>(null);
   const [report, setReport] = useState<AuditReport | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [isExportingAI, setIsExportingAI] = useState(false);
+
+  const handleExportAI = async () => {
+    if (!report) return;
+
+    setIsExportingAI(true);
+    try {
+      // Fetch AI analysis from API
+      const response = await fetch('/api/site-audit/ai-analysis', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(report),
+      });
+
+      if (!response.ok) {
+        throw new Error('Failed to generate AI analysis');
+      }
+
+      const analysis: AIAnalysis = await response.json();
+
+      // Generate PDF with AI analysis
+      await exportAuditWithAIAnalysis(report, analysis);
+    } catch (err) {
+      console.error('AI Export error:', err);
+      alert(err instanceof Error ? err.message : 'Failed to generate AI analysis');
+    } finally {
+      setIsExportingAI(false);
+    }
+  };
 
   const startAudit = useCallback(async () => {
     if (!url.trim()) return;
@@ -277,10 +308,56 @@ export function SiteAuditClient() {
           {/* Score Summary */}
           <Card>
             <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <TrendingUp className="h-5 w-5" />
-                {t("scores.title")}
-              </CardTitle>
+              <div className="flex items-center justify-between">
+                <CardTitle className="flex items-center gap-2">
+                  <TrendingUp className="h-5 w-5" />
+                  {t("scores.title")}
+                </CardTitle>
+                <div className="flex gap-2">
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => exportAuditToPdf(report, {
+                      title: t("pageTitle"),
+                      scores: {
+                        links: t("scores.links"),
+                        performance: t("scores.performance"),
+                        html: t("scores.html"),
+                        config: t("scores.config"),
+                        security: t("scores.security"),
+                      },
+                      stats: {
+                        pages: t("results.pagesScanned"),
+                        links: t("results.linksChecked"),
+                        images: t("results.imagesChecked"),
+                        errors: t("results.errorsTotal"),
+                      },
+                      sections: {},
+                    })}
+                  >
+                    <Download className="h-4 w-4 mr-2" />
+                    {t("exportPdf")}
+                  </Button>
+                  <Button
+                    variant="default"
+                    size="sm"
+                    onClick={handleExportAI}
+                    disabled={isExportingAI}
+                  >
+                    {isExportingAI ? (
+                      <>
+                        <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                        {t("exportAiLoading")}
+                      </>
+                    ) : (
+                      <>
+                        <Download className="h-4 w-4 mr-2" />
+                        {t("exportAiPdf")}
+                      </>
+                    )}
+                  </Button>
+                </div>
+              </div>
             </CardHeader>
             <CardContent>
               <div className="grid grid-cols-2 md:grid-cols-6 gap-4">

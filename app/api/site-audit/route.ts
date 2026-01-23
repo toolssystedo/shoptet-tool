@@ -1,19 +1,19 @@
 import { NextRequest } from 'next/server';
 import {
   parseSitemap,
-  extractLinksFromPage,
   checkUrl,
   isExternalUrl,
   checkRobotsTxt,
   checkSitemapHealth,
   checkFavicon,
   checkHttpsRedirect,
-  analyzePage,
+  analyzePageFull,
   generatePerformanceIssues,
   generateHtmlIssues,
   generateConfigIssues,
   generateSecurityIssues,
   calculateScores,
+  checkUrlsBatch,
   type CrawlResult,
   type AuditReport,
   type PerformanceIssue,
@@ -22,18 +22,19 @@ import {
   type SecurityIssue,
 } from '@/lib/site-audit/crawler';
 
-const MAX_PAGES = 50;
-const MAX_EXTERNAL_LINKS = 30;
+// Configuration
+const MAX_PAGES = 500; // Increased from 50
+const MAX_EXTERNAL_LINKS = 100;
+const PAGE_CONCURRENCY = 10; // Parallel page processing (increased from 5)
+const LINK_CHECK_CONCURRENCY = 30; // Parallel link checking (increased from 15)
 
-// Normalize URL to avoid duplicates like "/" and ""
+// Normalize URL to avoid duplicates
 function normalizePageUrl(url: string): string {
   try {
     const parsed = new URL(url);
-    // Remove trailing slash for consistency (except root)
     if (parsed.pathname !== '/' && parsed.pathname.endsWith('/')) {
       parsed.pathname = parsed.pathname.slice(0, -1);
     }
-    // Remove default ports
     if ((parsed.protocol === 'https:' && parsed.port === '443') ||
         (parsed.protocol === 'http:' && parsed.port === '80')) {
       parsed.port = '';
@@ -44,7 +45,6 @@ function normalizePageUrl(url: string): string {
   }
 }
 
-// Create issue signature for deduplication
 function getIssueSignature(issue: { type: string; details?: string }): string {
   return `${issue.type}:${issue.details || ''}`;
 }
@@ -80,235 +80,271 @@ export async function POST(request: NextRequest) {
         };
 
         try {
-          // Collections for issues
           const performanceIssues: PerformanceIssue[] = [];
           const htmlIssues: HtmlIssue[] = [];
           const configIssues: ConfigIssue[] = [];
           const securityIssues: SecurityIssue[] = [];
 
-          // ========== PHASE 1: CONFIG CHECKS ==========
+          // ========== PHASE 1: CONFIG CHECKS (parallel) ==========
           sendProgress({ phase: 'config', message: 'Kontroluji konfiguraci...', current: 0, total: 4 });
 
-          // Check robots.txt
-          const robotsIssues = await checkRobotsTxt(siteUrl);
+          const [robotsIssues, sitemapResult, faviconIssue, httpsIssue] = await Promise.all([
+            checkRobotsTxt(siteUrl),
+            checkSitemapHealth(siteUrl),
+            checkFavicon(siteUrl),
+            checkHttpsRedirect(siteUrl),
+          ]);
+
           configIssues.push(...robotsIssues);
-          sendProgress({ phase: 'config', message: 'Kontroluji robots.txt...', current: 1, total: 4 });
-
-          // Check sitemap
-          const { issues: sitemapIssues, urls: sitemapUrls } = await checkSitemapHealth(siteUrl);
-          configIssues.push(...sitemapIssues);
-          sendProgress({ phase: 'config', message: 'Kontroluji sitemap...', current: 2, total: 4 });
-
-          // Check favicon
-          const faviconIssue = await checkFavicon(siteUrl);
+          configIssues.push(...sitemapResult.issues);
           if (faviconIssue) configIssues.push(faviconIssue);
-          sendProgress({ phase: 'config', message: 'Kontroluji favicon...', current: 3, total: 4 });
-
-          // Check HTTPS redirect
-          const httpsIssue = await checkHttpsRedirect(siteUrl);
           if (httpsIssue) securityIssues.push(httpsIssue);
-          sendProgress({ phase: 'config', message: 'Kontroluji HTTPS...', current: 4, total: 4 });
+
+          sendProgress({ phase: 'config', message: 'Konfigurace zkontrolována', current: 4, total: 4 });
 
           // ========== PHASE 2: SITEMAP ==========
           sendProgress({ phase: 'sitemap', message: 'Načítám sitemap...', current: 0, total: 1 });
 
-          let pagesToScan = sitemapUrls.length > 0 ? sitemapUrls : await parseSitemap(siteUrl);
+          let pagesToScan = sitemapResult.urls.length > 0
+            ? sitemapResult.urls
+            : await parseSitemap(siteUrl);
 
           if (pagesToScan.length === 0) {
             pagesToScan = [siteUrl];
           }
 
-          pagesToScan = pagesToScan.slice(0, MAX_PAGES);
+          // For very large sites, use sampling
+          const totalSitemapPages = pagesToScan.length;
+          if (pagesToScan.length > MAX_PAGES) {
+            // Take first 100, last 50, and random sample from middle
+            const first = pagesToScan.slice(0, 100);
+            const last = pagesToScan.slice(-50);
+            const middle = pagesToScan.slice(100, -50);
+            const sampleSize = MAX_PAGES - 150;
+            const sampled: string[] = [];
+
+            // Random sampling from middle
+            const shuffled = middle.sort(() => Math.random() - 0.5);
+            sampled.push(...shuffled.slice(0, sampleSize));
+
+            pagesToScan = [...new Set([...first, ...sampled, ...last])];
+          }
 
           sendProgress({
             phase: 'sitemap',
-            message: `Nalezeno ${pagesToScan.length} stránek`,
+            message: totalSitemapPages > MAX_PAGES
+              ? `Nalezeno ${totalSitemapPages} stránek, analyzuji vzorek ${pagesToScan.length}`
+              : `Nalezeno ${pagesToScan.length} stránek`,
             current: pagesToScan.length,
             total: pagesToScan.length,
           });
 
-          // ========== PHASE 3: CRAWLING & ANALYSIS ==========
+          // ========== PHASE 3: PARALLEL CRAWLING & ANALYSIS ==========
           const allLinks: Map<string, string> = new Map();
           const allImages: Map<string, string> = new Map();
           const pages404: CrawlResult[] = [];
           const scannedPages = new Set<string>();
+          const pageQueue = [...pagesToScan];
+          let processedCount = 0;
 
-          for (let i = 0; i < pagesToScan.length; i++) {
-            const pageUrl = pagesToScan[i];
+          // Process pages in batches with concurrency
+          const processBatch = async (batch: string[]): Promise<void> => {
+            const results = await Promise.all(
+              batch.map(async (pageUrl) => {
+                if (scannedPages.has(pageUrl)) return null;
+                scannedPages.add(pageUrl);
 
-            if (scannedPages.has(pageUrl)) continue;
-            scannedPages.add(pageUrl);
+                // First check if page exists (fast HEAD request)
+                const { status } = await checkUrl(pageUrl);
 
-            sendProgress({
-              phase: 'crawling',
-              current: i + 1,
-              total: pagesToScan.length,
-              currentUrl: pageUrl,
-            });
+                if (status === 404) {
+                  return { type: '404' as const, url: pageUrl };
+                }
 
-            // Check page status
-            const { status } = await checkUrl(pageUrl);
+                if (status !== 200 && status < 300) return null;
 
-            if (status === 404) {
-              pages404.push({
-                url: pageUrl,
-                status: 404,
-                type: 'page',
-                isExternal: false,
-              });
-              continue;
-            }
+                // Full page analysis (single fetch for both analysis + links)
+                const result = await analyzePageFull(pageUrl);
+                return { type: 'success' as const, url: pageUrl, ...result };
+              })
+            );
 
-            if (status !== 200 && status < 300) continue;
+            for (const result of results) {
+              if (!result) continue;
 
-            // Analyze page for technical issues
-            const isHomepage = pageUrl === siteUrl || pageUrl === `${siteUrl}/`;
-            const analysis = await analyzePage(pageUrl);
-
-            if (analysis) {
-              // Generate issues from analysis
-              performanceIssues.push(...generatePerformanceIssues(analysis));
-              htmlIssues.push(...generateHtmlIssues(analysis));
-              configIssues.push(...generateConfigIssues(analysis, isHomepage));
-              securityIssues.push(...generateSecurityIssues(analysis));
-            }
-
-            // Extract links and images
-            const { links, images } = await extractLinksFromPage(pageUrl);
-
-            for (const link of links) {
-              if (!allLinks.has(link)) {
-                allLinks.set(link, pageUrl);
+              if (result.type === '404') {
+                pages404.push({
+                  url: result.url,
+                  status: 404,
+                  type: 'page',
+                  isExternal: false,
+                });
+                continue;
               }
-            }
 
-            for (const image of images) {
-              if (!allImages.has(image)) {
-                allImages.set(image, pageUrl);
+              const { url: pageUrl, analysis, links, images } = result;
+              const isHomepage = pageUrl === siteUrl || pageUrl === `${siteUrl}/`;
+
+              if (analysis) {
+                performanceIssues.push(...generatePerformanceIssues(analysis));
+                htmlIssues.push(...generateHtmlIssues(analysis));
+                configIssues.push(...generateConfigIssues(analysis, isHomepage));
+                securityIssues.push(...generateSecurityIssues(analysis));
               }
-            }
 
-            // Add new internal pages to scan
-            for (const link of links) {
-              if (
-                !isExternalUrl(link, siteUrl) &&
-                !scannedPages.has(link) &&
-                !pagesToScan.includes(link) &&
-                pagesToScan.length < MAX_PAGES
-              ) {
-                if (!link.match(/\.(jpg|jpeg|png|gif|svg|pdf|zip|css|js|xml|ico|webp)$/i)) {
-                  pagesToScan.push(link);
+              for (const link of links) {
+                if (!allLinks.has(link)) {
+                  allLinks.set(link, pageUrl);
+                }
+                // Add new internal pages to queue (limited)
+                if (
+                  !isExternalUrl(link, siteUrl) &&
+                  !scannedPages.has(link) &&
+                  !pageQueue.includes(link) &&
+                  scannedPages.size + pageQueue.length < MAX_PAGES &&
+                  !link.match(/\.(jpg|jpeg|png|gif|svg|pdf|zip|css|js|xml|ico|webp)$/i)
+                ) {
+                  pageQueue.push(link);
+                }
+              }
+
+              for (const image of images) {
+                if (!allImages.has(image)) {
+                  allImages.set(image, pageUrl);
                 }
               }
             }
+          };
 
-            await new Promise(resolve => setTimeout(resolve, 100));
+          // Process all pages with progress updates
+          while (pageQueue.length > 0) {
+            const batch = pageQueue.splice(0, PAGE_CONCURRENCY);
+            await processBatch(batch);
+            processedCount += batch.length;
+
+            sendProgress({
+              phase: 'crawling',
+              current: processedCount,
+              total: processedCount + pageQueue.length,
+              message: `Analyzuji stránky... (${scannedPages.size} hotovo)`,
+            });
+
+            // Small delay between batches to be polite (reduced for speed)
+            await new Promise(resolve => setTimeout(resolve, 20));
           }
 
-          // ========== PHASE 4: LINK CHECKING ==========
-          sendProgress({
-            phase: 'checking',
-            message: 'Kontroluji odkazy...',
-            current: 0,
-            total: allLinks.size + allImages.size,
-          });
-
+          // ========== PHASE 4: PARALLEL LINK CHECKING ==========
           const internalLinks404: CrawlResult[] = [];
           const externalLinks404: CrawlResult[] = [];
           const brokenImages: CrawlResult[] = [];
 
-          // Check internal links
-          const internalLinks = Array.from(allLinks.entries()).filter(
-            ([link]) => !isExternalUrl(link, siteUrl)
-          );
+          // Prepare links to check (exclude already scanned, limit for speed)
+          const internalLinksToCheck = Array.from(allLinks.entries())
+            .filter(([link]) => !isExternalUrl(link, siteUrl) && !scannedPages.has(link))
+            .slice(0, 500) // Limit internal links to check
+            .map(([url, source]) => ({ url, source }));
 
-          let checkCount = 0;
-          for (const [link, source] of internalLinks) {
-            if (scannedPages.has(link)) continue;
-
-            checkCount++;
-            sendProgress({
-              phase: 'checking',
-              current: checkCount,
-              total: internalLinks.length + Math.min(MAX_EXTERNAL_LINKS, allLinks.size - internalLinks.length) + allImages.size,
-              currentUrl: link,
-            });
-
-            const { status } = await checkUrl(link);
-
-            if (status === 404) {
-              internalLinks404.push({
-                url: link,
-                status: 404,
-                type: 'link',
-                source,
-                isExternal: false,
-              });
-            }
-
-            await new Promise(resolve => setTimeout(resolve, 50));
-          }
-
-          // Check external links (limited)
-          const externalLinks = Array.from(allLinks.entries())
+          const externalLinksToCheck = Array.from(allLinks.entries())
             .filter(([link]) => isExternalUrl(link, siteUrl))
-            .slice(0, MAX_EXTERNAL_LINKS);
+            .slice(0, MAX_EXTERNAL_LINKS)
+            .map(([url, source]) => ({ url, source }));
 
-          for (const [link, source] of externalLinks) {
-            checkCount++;
-            sendProgress({
-              phase: 'checking',
-              current: checkCount,
-              total: internalLinks.length + externalLinks.length + allImages.size,
-              currentUrl: link,
-            });
+          const imagesToCheck = Array.from(allImages.entries())
+            .slice(0, 50) // Check up to 50 images (reduced for speed)
+            .map(([url, source]) => ({ url, source }));
 
-            const { status } = await checkUrl(link);
+          const totalToCheck = internalLinksToCheck.length + externalLinksToCheck.length + imagesToCheck.length;
 
-            if (status === 404 || status === 0) {
-              externalLinks404.push({
-                url: link,
-                status: status || 404,
-                type: 'link',
-                source,
-                isExternal: true,
-              });
+          sendProgress({
+            phase: 'checking',
+            message: `Kontroluji ${totalToCheck} odkazů...`,
+            current: 0,
+            total: totalToCheck,
+          });
+
+          // Check all in parallel batches
+          let checkedCount = 0;
+
+          // Internal links
+          for (let i = 0; i < internalLinksToCheck.length; i += LINK_CHECK_CONCURRENCY) {
+            const batch = internalLinksToCheck.slice(i, i + LINK_CHECK_CONCURRENCY);
+            const results = await checkUrlsBatch(batch, LINK_CHECK_CONCURRENCY);
+
+            for (const result of results) {
+              if (result.status === 404) {
+                internalLinks404.push({
+                  url: result.url,
+                  status: 404,
+                  type: 'link',
+                  source: result.source,
+                  isExternal: false,
+                });
+              }
             }
 
-            await new Promise(resolve => setTimeout(resolve, 100));
+            checkedCount += batch.length;
+            sendProgress({
+              phase: 'checking',
+              current: checkedCount,
+              total: totalToCheck,
+              message: `Kontroluji interní odkazy...`,
+            });
           }
 
-          // Check images (sample)
-          const imagesToCheck = Array.from(allImages.entries()).slice(0, 50);
-          for (const [imageUrl, source] of imagesToCheck) {
-            checkCount++;
-            sendProgress({
-              phase: 'checking',
-              current: checkCount,
-              total: internalLinks.length + externalLinks.length + imagesToCheck.length,
-              currentUrl: imageUrl,
-            });
+          // External links
+          for (let i = 0; i < externalLinksToCheck.length; i += LINK_CHECK_CONCURRENCY) {
+            const batch = externalLinksToCheck.slice(i, i + LINK_CHECK_CONCURRENCY);
+            const results = await checkUrlsBatch(batch, LINK_CHECK_CONCURRENCY);
 
-            const { status } = await checkUrl(imageUrl);
-
-            if (status === 404 || status === 0) {
-              brokenImages.push({
-                url: imageUrl,
-                status: status || 404,
-                type: 'image',
-                source,
-                isExternal: isExternalUrl(imageUrl, siteUrl),
-              });
+            for (const result of results) {
+              if (result.status === 404 || result.status === 0) {
+                externalLinks404.push({
+                  url: result.url,
+                  status: result.status || 404,
+                  type: 'link',
+                  source: result.source,
+                  isExternal: true,
+                });
+              }
             }
 
-            await new Promise(resolve => setTimeout(resolve, 50));
+            checkedCount += batch.length;
+            sendProgress({
+              phase: 'checking',
+              current: checkedCount,
+              total: totalToCheck,
+              message: `Kontroluji externí odkazy...`,
+            });
+          }
+
+          // Images
+          for (let i = 0; i < imagesToCheck.length; i += LINK_CHECK_CONCURRENCY) {
+            const batch = imagesToCheck.slice(i, i + LINK_CHECK_CONCURRENCY);
+            const results = await checkUrlsBatch(batch, LINK_CHECK_CONCURRENCY);
+
+            for (const result of results) {
+              if (result.status === 404 || result.status === 0) {
+                brokenImages.push({
+                  url: result.url,
+                  status: result.status || 404,
+                  type: 'image',
+                  source: result.source,
+                  isExternal: isExternalUrl(result.url, siteUrl),
+                });
+              }
+            }
+
+            checkedCount += batch.length;
+            sendProgress({
+              phase: 'checking',
+              current: checkedCount,
+              total: totalToCheck,
+              message: `Kontroluji obrázky...`,
+            });
           }
 
           // ========== BUILD REPORT ==========
-
-          // Deduplicate issues - group same issues across pages, show only unique ones
-          // For issues that appear on all/most pages (SPA behavior), show once with note
-          const deduplicateIssues = <T extends { type: string; url?: string; details?: string; severity?: string }>(
+          const deduplicateIssues = <T extends { type: string; url?: string; details?: string }>(
             issues: T[]
           ): T[] => {
             const signatureMap = new Map<string, T[]>();
@@ -321,7 +357,6 @@ export async function POST(request: NextRequest) {
                 signatureMap.set(signature, []);
               }
 
-              // Check if we already have this issue for this normalized URL
               const existing = signatureMap.get(signature)!;
               const alreadyHasUrl = existing.some(i =>
                 (i.url ? normalizePageUrl(i.url) : '') === normalizedUrl
@@ -338,15 +373,12 @@ export async function POST(request: NextRequest) {
             for (const [, issueList] of signatureMap) {
               if (issueList.length === 0) continue;
 
-              // If issue appears on most pages (>70%), keep only the first one with a note
               if (issueList.length > totalPages * 0.7 && totalPages > 2) {
-                // Create a proper copy preserving all properties
                 const firstIssue = { ...issueList[0] } as T;
                 (firstIssue as { details?: string }).details =
                   `${(firstIssue as { details?: string }).details || ''} [Nalezeno na ${issueList.length} stránkách]`.trim();
                 result.push(firstIssue);
               } else {
-                // Otherwise keep all unique occurrences
                 result.push(...issueList);
               }
             }

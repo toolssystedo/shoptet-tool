@@ -207,17 +207,37 @@ export async function parseSitemap(siteUrl: string): Promise<string[]> {
 
 // ============= URL CHECKING =============
 
+// Fetch with timeout to prevent hanging
+async function fetchWithTimeout(
+  url: string,
+  options: RequestInit = {},
+  timeoutMs: number = 8000
+): Promise<Response> {
+  const controller = new AbortController();
+  const timeoutId = setTimeout(() => controller.abort(), timeoutMs);
+
+  try {
+    const response = await fetch(url, {
+      ...options,
+      signal: controller.signal,
+    });
+    return response;
+  } finally {
+    clearTimeout(timeoutId);
+  }
+}
+
 export async function checkUrl(
   url: string
 ): Promise<{ status: number; contentType: string; redirectUrl?: string }> {
   try {
-    const response = await fetch(url, {
+    const response = await fetchWithTimeout(url, {
       method: "HEAD",
       headers: {
         "User-Agent": "Mozilla/5.0 (compatible; SiteAuditBot/1.0)",
       },
       redirect: "manual",
-    });
+    }, 5000); // 5 second timeout for HEAD requests
 
     const redirectUrl = response.headers.get("location") || undefined;
 
@@ -228,13 +248,13 @@ export async function checkUrl(
     };
   } catch {
     try {
-      const response = await fetch(url, {
+      const response = await fetchWithTimeout(url, {
         method: "GET",
         headers: {
           "User-Agent": "Mozilla/5.0 (compatible; SiteAuditBot/1.0)",
         },
         redirect: "manual",
-      });
+      }, 8000); // 8 second timeout for GET fallback
 
       return {
         status: response.status,
@@ -242,7 +262,7 @@ export async function checkUrl(
         redirectUrl: response.headers.get("location") || undefined,
       };
     } catch {
-      return { status: 0, contentType: "" };
+      return { status: 0, contentType: "" }; // Timeout or error = treat as broken
     }
   }
 }
@@ -895,6 +915,244 @@ export async function extractLinksFromPage(
   }
 
   return { links, images };
+}
+
+// ============= COMBINED PAGE ANALYSIS (OPTIMIZED) =============
+
+/**
+ * Combined function that fetches page ONCE and returns both analysis AND links
+ * This is ~2x faster than calling analyzePage + extractLinksFromPage separately
+ */
+export async function analyzePageFull(
+  pageUrl: string
+): Promise<{ analysis: PageAnalysis | null; links: string[]; images: string[] }> {
+  const links: string[] = [];
+  const images: string[] = [];
+
+  try {
+    const response = await fetchWithTimeout(pageUrl, {
+      headers: { "User-Agent": "Mozilla/5.0 (compatible; SiteAuditBot/1.0)" },
+    }, 15000); // 15 second timeout for full page analysis
+
+    if (!response.ok) {
+      return { analysis: null, links, images };
+    }
+
+    const html = await response.text();
+    const $ = cheerio.load(html);
+    const baseUrl = new URL(pageUrl).origin;
+
+    // ===== EXTRACT LINKS =====
+    $("a[href]").each((_, el) => {
+      const href = $(el).attr("href");
+      if (href) {
+        const absoluteUrl = resolveUrl(href, baseUrl, pageUrl);
+        if (absoluteUrl && !links.includes(absoluteUrl)) {
+          links.push(absoluteUrl);
+        }
+      }
+    });
+
+    // ===== EXTRACT IMAGES =====
+    $("img[src]").each((_, el) => {
+      const src = $(el).attr("src");
+      if (src) {
+        const absoluteUrl = resolveUrl(src, baseUrl, pageUrl);
+        if (absoluteUrl && !images.includes(absoluteUrl)) {
+          images.push(absoluteUrl);
+        }
+      }
+    });
+
+    $("img[srcset], source[srcset]").each((_, el) => {
+      const srcset = $(el).attr("srcset");
+      if (srcset) {
+        const srcs = srcset.split(",").map((s) => s.trim().split(" ")[0]);
+        for (const src of srcs) {
+          const absoluteUrl = resolveUrl(src, baseUrl, pageUrl);
+          if (absoluteUrl && !images.includes(absoluteUrl)) {
+            images.push(absoluteUrl);
+          }
+        }
+      }
+    });
+
+    // ===== PAGE ANALYSIS (reuse parsed HTML) =====
+    const title = $("title").text().trim() || undefined;
+
+    const h1Elements = $("h1");
+    const h1Text = h1Elements.toArray().map((el) => $(el).text().trim());
+
+    const headingHierarchy: string[] = [];
+    $("h1, h2, h3, h4, h5, h6").each((_, el) => {
+      headingHierarchy.push(el.tagName.toLowerCase());
+    });
+
+    const imagesWithoutAltList: string[] = [];
+    $("img").each((_, el) => {
+      const alt = $(el).attr("alt");
+      if (alt === undefined || alt === "") {
+        const src = $(el).attr("src") || $(el).attr("data-src") || "";
+        if (src && imagesWithoutAltList.length < 10) {
+          imagesWithoutAltList.push(src.substring(0, 100));
+        }
+      }
+    });
+
+    const emptyLinksList: string[] = [];
+    $("a").each((_, el) => {
+      const href = $(el).attr("href");
+      if (!href || href === "#" || href === "javascript:void(0)" || href === "javascript:;") {
+        const text = $(el).text().trim().substring(0, 50) || "[no text]";
+        const linkHref = href || "[no href]";
+        if (emptyLinksList.length < 10) {
+          emptyLinksList.push(`"${text}" → ${linkHref}`);
+        }
+      }
+    });
+
+    const jsFiles = $("script[src]").length;
+    const cssFiles = $('link[rel="stylesheet"]').length;
+
+    const renderBlockingScripts = $("head script[src]").filter((_, el) => {
+      const async = $(el).attr("async");
+      const defer = $(el).attr("defer");
+      return async === undefined && defer === undefined;
+    }).length;
+
+    const webfonts = $('link[href*="fonts.googleapis.com"], link[href*="fonts.gstatic.com"]').length;
+    const hasLazyLoading = $('img[loading="lazy"], img[data-src], img[data-lazy]').length > 0;
+
+    const mixedContent: string[] = [];
+    if (pageUrl.startsWith("https://")) {
+      const pageHostname = new URL(pageUrl).hostname.replace(/^www\./, '');
+      const isSameDomain = (url: string): boolean => {
+        try {
+          return new URL(url).hostname.replace(/^www\./, '') === pageHostname;
+        } catch { return false; }
+      };
+
+      $('img[src^="http://"], script[src^="http://"], iframe[src^="http://"]').each((_, el) => {
+        const src = $(el).attr("src");
+        if (src && isSameDomain(src)) mixedContent.push(src);
+      });
+      $('link[rel="stylesheet"][href^="http://"]').each((_, el) => {
+        const href = $(el).attr("href");
+        if (href && isSameDomain(href)) mixedContent.push(href);
+      });
+    }
+
+    const externalScripts: string[] = [];
+    $("script[src]").each((_, el) => {
+      const src = $(el).attr("src");
+      if (src && !src.startsWith("/") && !src.startsWith(baseUrl)) {
+        try {
+          const scriptUrl = new URL(src, pageUrl);
+          if (scriptUrl.origin !== baseUrl) {
+            externalScripts.push(scriptUrl.href);
+          }
+        } catch {}
+      }
+    });
+
+    const hasFavicon = $('link[rel*="icon"]').length > 0;
+    const hasOgTags = $('meta[property^="og:"]').length >= 3;
+    const hasTwitterCards = $('meta[name^="twitter:"]').length >= 2;
+    const metaDescContent = $('meta[name="description"]').attr("content");
+    const hasMetaDescription = Boolean(metaDescContent && metaDescContent.length > 0);
+
+    const analysis: PageAnalysis = {
+      url: pageUrl,
+      title,
+      h1Count: h1Elements.length,
+      h1Text,
+      headingHierarchy,
+      imagesWithoutAlt: imagesWithoutAltList.length,
+      imagesWithoutAltList,
+      emptyLinks: emptyLinksList.length,
+      emptyLinksList,
+      jsFiles,
+      cssFiles,
+      renderBlockingScripts,
+      webfonts,
+      hasLazyLoading,
+      mixedContent,
+      externalScripts,
+      hasFavicon,
+      hasOgTags,
+      hasTwitterCards,
+      hasMetaDescription,
+      pageSize: html.length,
+    };
+
+    return { analysis, links, images };
+  } catch (error) {
+    console.error(`Error analyzing ${pageUrl}:`, error);
+    return { analysis: null, links, images };
+  }
+}
+
+// ============= PARALLEL PROCESSING UTILITIES =============
+
+/**
+ * Process items in parallel with concurrency limit
+ */
+export async function processInParallel<T, R>(
+  items: T[],
+  processor: (item: T) => Promise<R>,
+  concurrency: number = 5
+): Promise<R[]> {
+  const results: R[] = [];
+  const queue = [...items];
+  const inProgress: Promise<void>[] = [];
+
+  const processNext = async (): Promise<void> => {
+    if (queue.length === 0) return;
+
+    const item = queue.shift()!;
+    const result = await processor(item);
+    results.push(result);
+  };
+
+  // Start initial batch
+  while (inProgress.length < concurrency && queue.length > 0) {
+    const promise = processNext().then(() => {
+      inProgress.splice(inProgress.indexOf(promise), 1);
+    });
+    inProgress.push(promise);
+  }
+
+  // Process remaining items as slots become available
+  while (queue.length > 0 || inProgress.length > 0) {
+    if (inProgress.length > 0) {
+      await Promise.race(inProgress);
+    }
+    while (inProgress.length < concurrency && queue.length > 0) {
+      const promise = processNext().then(() => {
+        inProgress.splice(inProgress.indexOf(promise), 1);
+      });
+      inProgress.push(promise);
+    }
+  }
+
+  return results;
+}
+
+/**
+ * Check multiple URLs in parallel with concurrency limit
+ */
+export async function checkUrlsBatch(
+  urls: Array<{ url: string; source?: string }>,
+  concurrency: number = 10
+): Promise<Array<{ url: string; source?: string; status: number }>> {
+  return processInParallel(
+    urls,
+    async (item) => {
+      const { status } = await checkUrl(item.url);
+      return { ...item, status };
+    },
+    concurrency
+  );
 }
 
 // ============= UTILITIES =============

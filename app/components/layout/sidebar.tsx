@@ -16,6 +16,7 @@ import {
   Search,
   FileSearch,
   FolderTree,
+  PanelTop,
 } from "lucide-react";
 import { Link, usePathname } from "@/i18n/routing";
 import { useSidebar } from "@/lib/stores/sidebar-store";
@@ -62,6 +63,11 @@ const navItems: NavItem[] = [
     titleKey: "nav.categoryMapper",
     href: "/dashboard/category-mapper",
     icon: FolderTree,
+  },
+  {
+    titleKey: "nav.bannerGenerator",
+    href: "/dashboard/banner-generator",
+    icon: PanelTop,
   },
   {
     titleKey: "nav.profile",
