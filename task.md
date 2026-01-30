@@ -1,86 +1,47 @@
-# Project Role
+Act as a Senior Full Stack Developer. I need to implement a "Platform Status Monitor" widget on the Dashboard (Overview/Přehled) page.
 
-Act as a Senior AI Engineer & Full Stack Developer. We need to build an intelligent product data enrichment tool specifically for E-commerce exports (Shoptet).
+**Goal:**
+Show the live operational status of critical 3rd party platforms. If a platform goes down, we must alert our users via email.
 
-# Tech Stack
+**Target Platforms & URLs:**
 
-- **Framework:** Next.js 14+ (App Router)
-- **UI:** Shadcn/ui + Tailwind CSS
-- **File Parsing:** `xlsx` (SheetJS) or `papaparse` for CSV/Excel handling.
-- **AI Integration:** Vercel AI SDK (with OpenAI/Anthropic provider).
-- **Validation:** Zod.
+1.  **WordPress:** `https://automatticstatus.com/`
+2.  **Shoptet:** `https://www.shoptetstatus.com/`
+3.  **Shopify:** `https://shopstatus.shopifyapps.com/`
+4.  **Linode:** `https://status.linode.com/`
 
-# Core Objective
+**Technical Implementation Plan:**
 
-The app takes a product export file (.csv/.xlsx), analyzes product descriptions using AI, generates structured attributes (Filtering Properties and Text Properties), and returns a modified file ready for import.
+**1. Backend (API Route & Logic):**
+Create a new API route (e.g., `POST /api/status/check`) that does the following:
 
-# Architectural Requirement: The Strategy Pattern
+- **Fetch Data:** Query the status pages.
+  - _Tip:_ Most status pages (Atlassian Statuspage) expose a JSON endpoint at `/api/v2/status.json` or `/api/v2/summary.json`. Try to use these instead of scraping HTML.
+- **Compare State:**
+  - We need to store the _last known status_ in the database (create a new Prisma model `PlatformStatus` if needed, or use a simple key-value store).
+  - Compare the fetched status with the DB status.
+- **Trigger Alerts:**
+  - IF the status changes from "Operational" to "Major Outage" (or similar negative change), trigger an email notification function.
+  - The email function should fetch all users from the database and send a "Service Alert" warning.
+- **Update DB:** Save the new status.
 
-Since we will support 'Shoptet' now and 'UpGates' later (with totally different logic), you must implement a **Platform Adapter Pattern**.
+**2. Frontend (Dashboard Widget):**
+Create a generic component `StatusWidget` that:
 
-- Create an interface `PlatformAdapter` with methods like `validateFile`, `parseRow`, `formatOutput`.
-- Implement `ShoptetAdapter` class specifically for the logic below.
+- Displays the 4 platforms in a list or grid.
+- Shows a visual indicator (Green dot for "Operational", Red/Orange for issues).
+- Shows the text status (e.g., "All Systems Operational").
+- Has a **"Aktualizovat status" (Refresh)** button that manually triggers the API check and reloads the data.
 
-# Specific Logic: Shoptet Adapter
+**Requirements:**
 
-## 1. File Validation
+- Use standard Tailwind CSS for styling (make it look clean and integrated).
+- Handle API timeouts gracefully.
+- For the email part, write a placeholder function `sendOutageEmail(platformName, newStatus)` that I can connect to my email provider (Resend/SendGrid/Nodemailer) later.
 
-Before processing, check if the uploaded file contains these required headers:
+**Output:**
+Please generate the code for:
 
-- `shortDescription`
-- `description`
-- `textProperty` (base column)
-
-## 2. Filtering Properties (`filteringProperty`)
-
-- **Format:** In Shoptet, dynamic columns are named `filteringProperty:NameOfParam`. The cell value is just the value.
-- **Logic:** The user specifies _which_ parameters to extract (e.g., "Color", "Material") and the maximum number of parameters.
-- **AI Task:** Extract specific attributes from descriptions and map them to these columns.
-
-## 3. Text Properties (`textProperty`)
-
-- **Format:** These are informational parameters.
-  - Column 1: `textProperty`
-  - Column 2: `textProperty2`
-  - Column 3: `textProperty3`, etc.
-  - **Cell Content Format:** `Key;Value` (e.g., "Warranty;Lifetime").
-- **Logic:** The system must find the first _empty_ textProperty column for each row to avoid overwriting existing data.
-- **AI Task:** Extract informational data (defined by user) and format it strictly as `Key;Value`.
-
-# User Flow & UI Requirements
-
-## Step 1: Upload & Platform Selection
-
-- Select Platform (Start with Shoptet).
-- Upload File (Drag & drop).
-
-## Step 2: Configuration (The "Brain")
-
-- **Mode Selection:** Checkboxes for [ ] Generate Filtering Properties, [ ] Generate Text Properties.
-- **Custom Instructions:**
-  - Input field: "What to extract for Filtering?" (e.g., Color, Size).
-  - Input field: "What to extract for Text Properties?" (e.g., Warranty, Care Instructions).
-- **Source Selection:** Choose source column: `shortDescription`, `description`, or both combined.
-
-## Step 3: AI Preview (Crucial)
-
-- Before processing the whole file, show a "Test Run" button.
-- Pick 3 random rows, run the AI extraction, and show a side-by-side comparison (Original vs. Enriched).
-- Allow the user to tweak instructions if results are bad.
-
-## Step 4: Batch Processing & Download
-
-- Process the full file with a progress bar.
-- Generate the new `.xlsx` file.
-- **Important:** Ensure headers for `filteringProperty` are added dynamically based on AI findings if not pre-defined.
-
-# Technical Constraints
-
-- Use Structured Output (JSON Mode) for the AI prompt to ensure it returns data arrays, not text.
-- Example AI Output JSON:
-  ```json
-  {
-    "filtering": [{ "name": "Barva", "value": "Modrá" }],
-    "text": [{ "key": "Záruka", "value": "2 roky" }]
-  }
-  ```
+1.  The Prisma schema update (to store last status).
+2.  The API Route handler (`route.ts`).
+3.  The Frontend Component (`PlatformStatus.tsx`).

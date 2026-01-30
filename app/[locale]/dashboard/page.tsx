@@ -1,6 +1,7 @@
 import { auth } from "@/lib/auth";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { getTranslations, setRequestLocale } from "next-intl/server";
+import { PlatformStatus } from "@/components/dashboard/platform-status";
 
 type Props = {
   params: Promise<{ locale: string }>;
@@ -64,6 +65,11 @@ export default async function DashboardPage({ params }: Props) {
             </p>
           </CardContent>
         </Card>
+      </div>
+
+      {/* Platform Status Monitor Widget */}
+      <div className="grid gap-6 md:grid-cols-2">
+        <PlatformStatus />
       </div>
     </div>
   );

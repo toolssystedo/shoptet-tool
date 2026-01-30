@@ -187,34 +187,20 @@ export const SHOPTET_CATEGORY_COLUMNS = [
 ] as const;
 
 // All allowed Shoptet columns (for validation)
+// Note: metaTitle removed - doesn't exist in standard Shoptet exports
+// Note: image* and categoryText* columns are validated via regex in shoptet-adapter.ts
 export const SHOPTET_ALLOWED_COLUMNS = [
   // Required
   "code",
   "name",
   "shortDescription",
   "description",
-  "categoryText",
   "adult",
-  "metaTitle",
   "metaDescription",
-  // Category columns (optional)
+  // Category columns (base - others handled by regex: categoryText, categoryText2, etc.)
   "defaultCategory",
-  "categoryText2",
-  "categoryText3",
-  "categoryText4",
-  "categoryText5",
-  // Image columns (optional)
+  // Image columns (base - others handled by regex: image, image2, ... image57)
   "defaultImage",
-  "image",
-  "image2",
-  "image3",
-  "image4",
-  "image5",
-  "image6",
-  "image7",
-  "image8",
-  "image9",
-  "image10",
   // Optional - used by AI for analysis
   "weight",
   "warranty",
@@ -236,6 +222,7 @@ export const SHOPTET_ALLOWED_COLUMNS = [
 ] as const;
 
 // Columns that should be selected in Shoptet export
+// Note: metaTitle was removed - it doesn't exist in standard Shoptet exports
 export const SHOPTET_EXPORT_RECOMMENDED_COLUMNS = [
   { name: "code", required: true, description: "Kód produktu" },
   { name: "name", required: true, description: "Název produktu" },
@@ -243,7 +230,6 @@ export const SHOPTET_EXPORT_RECOMMENDED_COLUMNS = [
   { name: "description", required: true, description: "Popis" },
   { name: "categoryText", required: false, description: "Kategorie" },
   { name: "adult", required: false, description: "Pro dospělé" },
-  { name: "metaTitle", required: false, description: "Meta titulek" },
   { name: "metaDescription", required: false, description: "Meta popis" },
   { name: "manufacturer", required: false, description: "Výrobce (pro AI analýzu)" },
   { name: "weight", required: false, description: "Hmotnost (pro AI analýzu)" },

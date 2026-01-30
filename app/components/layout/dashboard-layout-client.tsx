@@ -11,12 +11,13 @@ export function DashboardLayoutClient({
   const { isCollapsed } = useSidebar();
 
   return (
-    <main 
+    <main
       className={cn(
         "flex-1 transition-all duration-300",
         // Desktop: always has margin based on sidebar state
+        // Collapsed sidebar = w-16 (64px), Expanded sidebar = w-72 (288px)
         "lg:ml-16",
-        !isCollapsed && "lg:ml-64",
+        !isCollapsed && "lg:ml-72",
         // Mobile: no margin when sidebar is hidden, but account for header
         "ml-0 pt-16 lg:pt-0"
       )}

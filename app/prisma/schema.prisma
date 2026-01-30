@@ -114,3 +114,19 @@ enum Block {
   USER_MANAGEMENT
   INVITATIONS
 }
+
+// Platform Status Monitor - tracks external platform operational status
+model PlatformStatus {
+  id          String   @id @default(cuid())
+  platform    String   @unique // wordpress, shoptet, shopify, linode
+  status      String   // operational, degraded, partial_outage, major_outage
+  statusText  String?  @map("status_text") // Human readable status
+  indicator   String?  // none, minor, major, critical
+  lastChecked DateTime @map("last_checked")
+  lastChanged DateTime? @map("last_changed") // When status last changed
+
+  createdAt   DateTime @default(now()) @map("created_at")
+  updatedAt   DateTime @updatedAt @map("updated_at")
+
+  @@map("platform_statuses")
+}

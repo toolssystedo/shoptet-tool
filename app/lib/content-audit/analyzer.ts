@@ -38,6 +38,8 @@ export interface ProductData {
   name: string;
   shortDescription?: string;
   description?: string;
+  metaDescription?: string; // SEO meta description
+  metaTitle?: string; // SEO meta title (if different from name)
   defaultCategory?: string;
   categoryText?: string; // Full category path
   additionalCategories?: string[];
@@ -206,6 +208,26 @@ export interface ProductCategoryIssue {
   categories?: string[];
 }
 
+// 4. SEO Issues - Meta Description vs Product Title
+export interface SeoIssue {
+  type:
+    | 'no_meta_description'
+    | 'meta_too_short'
+    | 'meta_too_long'
+    | 'meta_same_as_title'
+    | 'meta_contains_title'
+    | 'meta_same_as_short_desc'
+    | 'title_too_long'
+    | 'title_too_short'
+    | 'duplicate_meta_description';
+  productCode: string;
+  productName: string;
+  severity: 'error' | 'warning';
+  details?: string;
+  metaDescription?: string;
+  relatedProducts?: string[];
+}
+
 export interface BusinessIssue {
   type:
     // Price issues
@@ -247,6 +269,7 @@ export interface ContentAuditReport {
   stockIssues: StockIssue[];
   categoryIssues: CategoryIssue[];
   productCategoryIssues: ProductCategoryIssue[];
+  seoIssues: SeoIssue[];
 
   stats: {
     withDescription: number;
@@ -275,6 +298,7 @@ export interface ContentAuditReport {
     dataQuality: number;
     stock: number;
     categories: number;
+    seo: number;
     overall: number;
   };
 }
@@ -308,12 +332,28 @@ function parseBoolean(value: string | number | undefined): boolean {
 
 export function parseProductFile(file: ArrayBuffer, fileName: string): ProductData[] {
   const products: ProductData[] = [];
+  const lowerName = fileName.toLowerCase();
 
   try {
-    const workbook = XLSX.read(file, { type: 'array' });
-    const sheetName = workbook.SheetNames[0];
-    const worksheet = workbook.Sheets[sheetName];
-    const data = XLSX.utils.sheet_to_json<Record<string, any>>(worksheet);
+    let data: Record<string, any>[] = [];
+
+    if (lowerName.endsWith('.csv')) {
+      // Parse CSV file
+      const decoder = new TextDecoder('utf-8');
+      const content = decoder.decode(file);
+      data = parseCsvContent(content);
+    } else if (lowerName.endsWith('.xml')) {
+      // Parse XML file (Heureka, Google Merchant, Shoptet XML feed)
+      const decoder = new TextDecoder('utf-8');
+      const content = decoder.decode(file);
+      data = parseXmlProducts(content);
+    } else {
+      // Parse Excel file (xlsx, xls)
+      const workbook = XLSX.read(file, { type: 'array' });
+      const sheetName = workbook.SheetNames[0];
+      const worksheet = workbook.Sheets[sheetName];
+      data = XLSX.utils.sheet_to_json<Record<string, any>>(worksheet);
+    }
 
     for (const row of data) {
       // Shoptet column names (support both Czech and English)
@@ -322,6 +362,8 @@ export function parseProductFile(file: ArrayBuffer, fileName: string): ProductDa
         name: row['name'] || row['NAME'] || row['Název'] || '',
         shortDescription: row['shortDescription'] || row['SHORT_DESCRIPTION'] || row['Krátký popis'] || row['perex'] || '',
         description: row['description'] || row['DESCRIPTION'] || row['Popis'] || row['Dlouhý popis'] || '',
+        metaDescription: row['metaDescription'] || row['META_DESCRIPTION'] || row['Meta popis'] || row['SEO popis'] || row['seoDescription'] || '',
+        metaTitle: row['metaTitle'] || row['META_TITLE'] || row['Meta titulek'] || row['SEO titulek'] || row['seoTitle'] || '',
         defaultCategory: row['defaultCategory'] || row['DEFAULT_CATEGORY'] || row['Kategorie'] || row['Výchozí kategorie'] || '',
         categoryText: row['categoryText'] || row['CATEGORY_TEXT'] || row['Cesta kategorie'] || '',
         // Price fields
@@ -409,7 +451,7 @@ function parseFilterParameters(row: Record<string, any>): string[] {
   return params;
 }
 
-// ============= CATEGORY FILE PARSING =============
+// ============= CSV PARSING =============
 
 /**
  * Parse CSV content to array of objects
@@ -439,6 +481,113 @@ function parseCsvContent(content: string): Record<string, any>[] {
   return data;
 }
 
+// ============= XML PRODUCT PARSING =============
+
+/**
+ * Parse XML content to array of product objects
+ * Supports common XML formats: Heureka, Google Merchant, Shoptet XML, Zboží.cz
+ */
+function parseXmlProducts(content: string): Record<string, any>[] {
+  const data: Record<string, any>[] = [];
+
+  // Match <SHOPITEM>, <item>, <product>, <entry> elements (common XML feed formats)
+  const productRegex = /<(SHOPITEM|shopitem|item|ITEM|product|PRODUCT|entry|ENTRY)[^>]*>([\s\S]*?)<\/\1>/gi;
+
+  let match;
+  while ((match = productRegex.exec(content)) !== null) {
+    const productContent = match[2];
+    const row: Record<string, any> = {};
+
+    // Define field mappings for various XML formats
+    const fieldMappings = [
+      // Code/ID
+      { xmlTags: ['ITEM_ID', 'item_id', 'CODE', 'code', 'ID', 'id', 'PRODUCT_ID', 'product_id', 'g:id'], target: 'code' },
+      // Name
+      { xmlTags: ['PRODUCTNAME', 'productname', 'PRODUCT', 'product', 'NAME', 'name', 'TITLE', 'title', 'g:title'], target: 'name' },
+      // Short description
+      { xmlTags: ['SHORT_DESCRIPTION', 'short_description', 'PEREX', 'perex', 'SUMMARY', 'summary'], target: 'shortDescription' },
+      // Description
+      { xmlTags: ['DESCRIPTION', 'description', 'LONG_DESCRIPTION', 'long_description', 'g:description'], target: 'description' },
+      // Meta description
+      { xmlTags: ['META_DESCRIPTION', 'meta_description', 'SEO_DESCRIPTION', 'seo_description'], target: 'metaDescription' },
+      // Category
+      { xmlTags: ['CATEGORYTEXT', 'categorytext', 'CATEGORY', 'category', 'CATEGORY_TEXT', 'g:product_type', 'g:google_product_category'], target: 'categoryText' },
+      // Price
+      { xmlTags: ['PRICE_VAT', 'price_vat', 'PRICE', 'price', 'g:price'], target: 'price' },
+      // Original price
+      { xmlTags: ['PRICE_BEFORE_DISCOUNT', 'price_before_discount', 'STANDARD_PRICE', 'standard_price', 'g:sale_price'], target: 'priceBeforeDiscount' },
+      // Availability
+      { xmlTags: ['DELIVERY_DATE', 'delivery_date', 'AVAILABILITY', 'availability', 'g:availability'], target: 'availability' },
+      // Stock
+      { xmlTags: ['STOCK', 'stock', 'AMOUNT', 'amount', 'QUANTITY', 'quantity'], target: 'stock' },
+      // EAN
+      { xmlTags: ['EAN', 'ean', 'GTIN', 'gtin', 'g:gtin', 'BARCODE', 'barcode'], target: 'ean' },
+      // Manufacturer
+      { xmlTags: ['MANUFACTURER', 'manufacturer', 'BRAND', 'brand', 'g:brand', 'VENDOR', 'vendor'], target: 'manufacturer' },
+      // Image
+      { xmlTags: ['IMGURL', 'imgurl', 'IMAGE', 'image', 'IMG', 'img', 'g:image_link', 'PICTURE', 'picture'], target: 'image' },
+      // URL
+      { xmlTags: ['URL', 'url', 'LINK', 'link', 'g:link'], target: 'url' },
+      // Weight
+      { xmlTags: ['WEIGHT', 'weight', 'g:shipping_weight'], target: 'weight' },
+      // Warranty
+      { xmlTags: ['WARRANTY', 'warranty', 'GUARANTEE', 'guarantee'], target: 'warranty' },
+      // Item group (for variants)
+      { xmlTags: ['ITEMGROUP_ID', 'itemgroup_id', 'ITEM_GROUP_ID', 'g:item_group_id', 'PARENT_ID', 'parent_id'], target: 'parentCode' },
+    ];
+
+    // Extract fields
+    for (const mapping of fieldMappings) {
+      for (const tag of mapping.xmlTags) {
+        const regex = new RegExp(`<${tag}[^>]*><!\\[CDATA\\[([\\s\\S]*?)\\]\\]><\\/${tag}>|<${tag}[^>]*>([^<]*)<\\/${tag}>`, 'i');
+        const fieldMatch = productContent.match(regex);
+        if (fieldMatch) {
+          const value = (fieldMatch[1] || fieldMatch[2] || '').trim();
+          if (value) {
+            row[mapping.target] = value;
+            break;
+          }
+        }
+      }
+    }
+
+    // Count additional images
+    const additionalImgRegex = /<(IMGURL_ALTERNATIVE|imgurl_alternative|ADDITIONAL_IMAGE|additional_image|g:additional_image_link)[^>]*>(?:<!\[CDATA\[)?([\s\S]*?)(?:\]\]>)?<\/\1>/gi;
+    let imgCount = row['image'] ? 1 : 0;
+    let imgMatch;
+    while ((imgMatch = additionalImgRegex.exec(productContent)) !== null) {
+      if (imgMatch[2]?.trim()) imgCount++;
+    }
+    if (imgCount > 0) {
+      row['imageCount'] = imgCount;
+    }
+
+    // Extract parameters/attributes
+    const paramRegex = /<PARAM[^>]*>[\s\S]*?<PARAM_NAME[^>]*>(?:<!\[CDATA\[)?([\s\S]*?)(?:\]\]>)?<\/PARAM_NAME>[\s\S]*?<VAL[^>]*>(?:<!\[CDATA\[)?([\s\S]*?)(?:\]\]>)?<\/VAL>[\s\S]*?<\/PARAM>/gi;
+    const params: string[] = [];
+    let paramMatch;
+    while ((paramMatch = paramRegex.exec(productContent)) !== null) {
+      const paramName = (paramMatch[1] || '').trim();
+      const paramValue = (paramMatch[2] || '').trim();
+      if (paramName && paramValue) {
+        params.push(`${paramName}:${paramValue}`);
+      }
+    }
+    if (params.length > 0) {
+      row['filterParams'] = params.join(',');
+    }
+
+    // Only add if we have a code or name
+    if (row['code'] || row['name']) {
+      data.push(row);
+    }
+  }
+
+  return data;
+}
+
+// ============= CATEGORY FILE PARSING =============
+
 /**
  * Parse XML content to array of category objects
  * Supports common XML formats: <categories><category>...</category></categories>
@@ -458,21 +607,21 @@ function parseXmlCategories(content: string): Record<string, any>[] {
     // Extract common fields from XML
     const fields = [
       // ID/Code fields
-      { keys: ['code', 'CODE', 'id', 'ID', 'guid', 'GUID', 'CATEGORY_ID'], target: 'code' },
-      // Name fields
-      { keys: ['name', 'NAME', 'CATEGORY_NAME', 'categoryName', 'Název', 'Jméno'], target: 'name' },
+      { keys: ['code', 'CODE', 'id', 'ID', 'guid', 'GUID', 'CATEGORY_ID', 'ITEM_ID', 'item_id'], target: 'code' },
+      // Name fields - TITLE is common in Heureka/Shoptet XML feeds
+      { keys: ['TITLE', 'title', 'name', 'NAME', 'CATEGORY_NAME', 'categoryName', 'CATEGORYNAME', 'Název', 'Jméno'], target: 'name' },
       // Parent fields
       { keys: ['parentCode', 'PARENT_CODE', 'parentGuid', 'PARENT_GUID', 'parent', 'PARENT', 'parentId', 'PARENT_ID'], target: 'parentCode' },
       // Path fields
-      { keys: ['path', 'PATH', 'categoryText', 'CATEGORY_TEXT', 'CATEGORY_FULLNAME', 'fullPath', 'Cesta'], target: 'path' },
+      { keys: ['path', 'PATH', 'categoryText', 'CATEGORY_TEXT', 'CATEGORY_FULLNAME', 'fullPath', 'Cesta', 'CATEGORYTEXT'], target: 'path' },
       // Description fields
-      { keys: ['description', 'DESCRIPTION', 'desc', 'DESC', 'Popis'], target: 'description' },
+      { keys: ['description', 'DESCRIPTION', 'desc', 'DESC', 'Popis', 'CONTENT', 'content'], target: 'description' },
       // Image fields
-      { keys: ['image', 'IMAGE', 'img', 'IMG', 'imgUrl', 'Obrázek'], target: 'image' },
+      { keys: ['image', 'IMAGE', 'img', 'IMG', 'imgUrl', 'IMGURL', 'Obrázek'], target: 'image' },
       // Active fields
       { keys: ['active', 'ACTIVE', 'visible', 'VISIBLE', 'isActive', 'Aktivní'], target: 'active' },
       // Product count
-      { keys: ['productCount', 'PRODUCT_COUNT', 'count', 'COUNT'], target: 'productCount' },
+      { keys: ['productCount', 'PRODUCT_COUNT', 'count', 'COUNT', 'ITEM_COUNT'], target: 'productCount' },
       // Order/Priority
       { keys: ['order', 'ORDER', 'priority', 'PRIORITY', 'Pořadí'], target: 'order' },
     ];
@@ -522,16 +671,50 @@ export function parseCategoryFile(file: ArrayBuffer, fileName: string): Category
     }
 
     for (const row of data) {
+      // Extract name with many column name variations (Shoptet uses various formats)
+      const name = row['name'] || row['NAME'] || row['Název'] || row['nazev'] || row['NAZEV'] ||
+                   row['Jméno'] || row['jmeno'] || row['CATEGORY_NAME'] || row['categoryName'] ||
+                   row['title'] || row['TITLE'] || row['Titul'] || row['label'] || row['LABEL'] ||
+                   row['text'] || row['TEXT'] || '';
+
+      // Extract code
+      const code = row['code'] || row['CODE'] || row['Kód'] || row['kod'] || row['KOD'] ||
+                   row['guid'] || row['GUID'] || row['id'] || row['ID'] || row['CATEGORY_ID'] || '';
+
+      // Extract path
+      const path = row['path'] || row['PATH'] || row['Cesta'] || row['cesta'] ||
+                   row['categoryText'] || row['CATEGORY_FULLNAME'] || row['fullPath'] || '';
+
+      // Extract name from path if not found directly (get last segment)
+      // e.g., "Elektronika | Telefony | Příslušenství" -> "Příslušenství"
+      const extractNameFromPath = (p: string): string => {
+        if (!p) return '';
+        // Try common delimiters: | > / \
+        const delimiters = [' | ', ' > ', ' / ', ' \\ ', '|', '>', '/'];
+        for (const delim of delimiters) {
+          if (p.includes(delim)) {
+            const parts = p.split(delim);
+            return parts[parts.length - 1].trim();
+          }
+        }
+        return p;
+      };
+
       const category: CategoryData = {
-        code: row['code'] || row['CODE'] || row['Kód'] || row['guid'] || row['GUID'] || row['id'] || row['ID'] || row['CATEGORY_ID'] || '',
-        name: row['name'] || row['NAME'] || row['Název'] || row['Jméno'] || row['CATEGORY_NAME'] || '',
-        parentCode: row['parentCode'] || row['PARENT_CODE'] || row['parentGuid'] || row['PARENT_GUID'] || row['Rodičovská kategorie'] || row['Kód rodiče'] || row['parent'] || row['PARENT'] || '',
-        path: row['path'] || row['PATH'] || row['Cesta'] || row['categoryText'] || row['CATEGORY_FULLNAME'] || '',
-        description: row['description'] || row['DESCRIPTION'] || row['Popis'] || '',
-        image: row['image'] || row['IMAGE'] || row['Obrázek'] || '',
-        isActive: parseBoolean(row['active'] || row['ACTIVE'] || row['Aktivní'] || row['visible'] || row['VISIBLE'] || 'true'),
-        productCount: parseNumber(row['productCount'] || row['PRODUCT_COUNT'] || row['Počet produktů']),
-        order: parseNumber(row['order'] || row['ORDER'] || row['Pořadí'] || row['priority'] || row['PRIORITY']),
+        code: code,
+        name: name || extractNameFromPath(path) || code, // Fallback: extract from path or use code
+        parentCode: row['parentCode'] || row['PARENT_CODE'] || row['parentGuid'] || row['PARENT_GUID'] ||
+                    row['Rodičovská kategorie'] || row['Kód rodiče'] || row['parent'] || row['PARENT'] ||
+                    row['parentId'] || row['PARENT_ID'] || row['nadrazena'] || '',
+        path: path,
+        description: row['description'] || row['DESCRIPTION'] || row['Popis'] || row['popis'] || '',
+        image: row['image'] || row['IMAGE'] || row['Obrázek'] || row['obrazek'] || '',
+        isActive: parseBoolean(row['active'] || row['ACTIVE'] || row['Aktivní'] || row['aktivni'] ||
+                               row['visible'] || row['VISIBLE'] || 'true'),
+        productCount: parseNumber(row['productCount'] || row['PRODUCT_COUNT'] || row['Počet produktů'] ||
+                                  row['pocetProduktu'] || row['products']),
+        order: parseNumber(row['order'] || row['ORDER'] || row['Pořadí'] || row['poradi'] ||
+                          row['priority'] || row['PRIORITY']),
       };
 
       if (category.code || category.name) {
@@ -573,6 +756,38 @@ function calculateSimilarity(text1: string, text2: string): number {
   return intersection.size / union.size;
 }
 
+// Check if products are likely variants of the same product based on code patterns
+// Examples: "114/PRO" and "114/STA", "ABC-01" and "ABC-02", "PROD_A" and "PROD_B"
+function areProductVariants(products: ProductData[]): boolean {
+  if (products.length < 2) return false;
+
+  // If all products have the same parentCode, they are variants
+  const parentCodes = products.map(p => p.parentCode).filter(Boolean);
+  if (parentCodes.length === products.length && new Set(parentCodes).size === 1) {
+    return true;
+  }
+
+  // Extract common prefix from product codes using delimiters (/, -, _)
+  const codes = products.map(p => p.code.trim());
+
+  // Find common prefix before delimiter
+  const extractBaseCode = (code: string): string | null => {
+    // Match patterns like "114/PRO", "ABC-01", "PROD_A"
+    const match = code.match(/^(.+?)[\/\-_](.+)$/);
+    if (match) return match[1];
+    return null;
+  };
+
+  const baseCodes = codes.map(extractBaseCode).filter(Boolean) as string[];
+
+  // If all products have a common base code pattern, they are variants
+  if (baseCodes.length === codes.length && new Set(baseCodes).size === 1) {
+    return true;
+  }
+
+  return false;
+}
+
 // Check for Lorem Ipsum
 function hasLoremIpsum(text: string): boolean {
   const loremPatterns = [
@@ -584,17 +799,18 @@ function hasLoremIpsum(text: string): boolean {
   return loremPatterns.some(pattern => pattern.test(text));
 }
 
-// Check for test content
+// Check for test content (only clear placeholder markers, not common words)
 function hasTestContent(text: string): boolean {
   const testPatterns = [
-    /test\s*(popis|description|text)/i,
-    /xxx+/i,
-    /\[todo\]/i,
-    /\[placeholder\]/i,
-    /doplnit/i,
-    /tbd/i,
-    /asdf/i,
-    /qwerty/i,
+    /test\s*(popis|description|text)/i,   // "test popis", "test description"
+    /xxx{2,}/i,                             // "xxx" or more x's
+    /\[todo\]/i,                            // "[TODO]"
+    /\[placeholder\]/i,                     // "[placeholder]"
+    /\btbd\b/i,                             // "TBD" as standalone word
+    /\basdf+\b/i,                           // "asdf", "asdfasdf"
+    /\bqwerty\b/i,                          // "qwerty"
+    /\{\{[^}]*\}\}/,                        // template placeholders {{...}}
+    /\[\[[^\]]*\]\]/,                       // wiki-style placeholders [[...]]
   ];
   return testPatterns.some(pattern => pattern.test(text));
 }
@@ -1052,9 +1268,14 @@ function analyzeDataQuality(products: ProductData[]): DataQualityIssue[] {
     }
   }
 
-  // Report duplicate names
+  // Report duplicate names (skip if products are variants of the same product)
   for (const [name, prods] of nameMap) {
     if (prods.length > 1) {
+      // Skip if all products with same name appear to be variants (e.g., 114/PRO, 114/STA)
+      if (areProductVariants(prods)) {
+        continue;
+      }
+
       for (const prod of prods) {
         issues.push({
           type: 'duplicate_name',
@@ -1565,16 +1786,41 @@ function analyzeCategoryStructureFromFeed(categories: CategoryData[], products: 
     }
   }
 
+  // Build set of all category paths for parent detection
+  const allPaths = new Set(categories.map(c => c.path || c.name).filter(Boolean));
+
+  // Helper to check if category is a parent (has children)
+  const isParentCategory = (cat: CategoryData): boolean => {
+    // Check by parentCode reference
+    const hasChildByCode = categories.some(c => c.parentCode === cat.code);
+    if (hasChildByCode) return true;
+
+    // Check by path prefix (e.g., "A | B" is parent of "A | B | C")
+    const catPath = cat.path || cat.name;
+    if (catPath) {
+      for (const path of allPaths) {
+        if (path !== catPath && path.startsWith(catPath + ' | ')) {
+          return true;
+        }
+      }
+    }
+    return false;
+  };
+
   // Analyze each category from feed
   for (const cat of categories) {
     const categoryPath = cat.path || cat.name;
     const productCount = cat.productCount ?? productCountByCategory.get(cat.code) ?? 0;
+    const isHidden = cat.isActive === false;
+    const isParent = isParentCategory(cat);
 
     // Empty category (no products)
-    if (productCount === 0) {
-      // Check if it has children
-      const hasChildren = categories.some(c => c.parentCode === cat.code);
-      if (!hasChildren) {
+    if (productCount === 0 && !isParent) {
+      // Hidden empty categories are intentional - skip or very low priority
+      if (isHidden) {
+        // Don't report hidden empty categories - this is normal
+        // (intentionally hidden for organizational purposes)
+      } else {
         issues.push({
           type: 'empty_category',
           categoryPath: categoryPath,
@@ -1586,8 +1832,8 @@ function analyzeCategoryStructureFromFeed(categories: CategoryData[], products: 
       }
     }
 
-    // Single product category
-    if (productCount === 1) {
+    // Single product category (only for visible leaf categories)
+    if (productCount === 1 && !isParent && !isHidden) {
       issues.push({
         type: 'single_product_category',
         categoryPath: categoryPath,
@@ -1628,8 +1874,8 @@ function analyzeCategoryStructureFromFeed(categories: CategoryData[], products: 
       });
     }
 
-    // Category without description
-    if (!cat.description || cat.description.trim().length === 0) {
+    // Category without description (only for visible categories - hidden don't need SEO)
+    if (!isHidden && (!cat.description || cat.description.trim().length === 0)) {
       issues.push({
         type: 'category_no_description',
         categoryPath: categoryPath,
@@ -1640,14 +1886,14 @@ function analyzeCategoryStructureFromFeed(categories: CategoryData[], products: 
       });
     }
 
-    // Inactive category with products
-    if (cat.isActive === false && productCount > 0) {
+    // Inactive/hidden category with products - this is a problem!
+    if (isHidden && productCount > 0) {
       issues.push({
         type: 'empty_category', // reusing type
         categoryPath: categoryPath,
         categoryName: cat.name,
         severity: 'error',
-        details: `Neaktivní kategorie obsahuje ${productCount} produktů`,
+        details: `Skrytá kategorie obsahuje ${productCount} produktů (nebudou viditelné!)`,
         productCount: productCount,
       });
     }
@@ -1713,6 +1959,175 @@ function analyzeProductCategorization(products: ProductData[]): ProductCategoryI
   }
 
   return issues;
+}
+
+// ============= 4. SEO ANALYSIS - Meta Description vs Product Title =============
+
+function analyzeSeo(products: ProductData[]): SeoIssue[] {
+  const issues: SeoIssue[] = [];
+
+  // Map for duplicate meta description detection
+  const metaDescriptionMap = new Map<string, ProductData[]>();
+
+  // SEO best practices constants
+  const META_DESC_MIN_LENGTH = 70;
+  const META_DESC_MAX_LENGTH = 160;
+  const TITLE_MIN_LENGTH = 10;
+  const TITLE_MAX_LENGTH = 70;
+
+  for (const product of products) {
+    // Skip variant products
+    if (product.parentCode) continue;
+
+    const title = product.metaTitle || product.name || '';
+    const metaDesc = product.metaDescription || '';
+    const shortDesc = product.shortDescription || '';
+
+    // Normalize for comparison
+    const normalizedTitle = title.toLowerCase().trim();
+    const normalizedMeta = metaDesc.toLowerCase().trim();
+    const normalizedShort = stripHtml(shortDesc).toLowerCase().trim();
+
+    // 1. No meta description
+    if (!metaDesc || metaDesc.trim().length === 0) {
+      issues.push({
+        type: 'no_meta_description',
+        productCode: product.code,
+        productName: product.name,
+        severity: 'warning',
+        details: 'Produkt nemá vyplněný meta popis. Google zobrazí automaticky generovaný text.',
+      });
+    } else {
+      // 2. Meta description too short
+      if (metaDesc.length < META_DESC_MIN_LENGTH) {
+        issues.push({
+          type: 'meta_too_short',
+          productCode: product.code,
+          productName: product.name,
+          severity: 'warning',
+          details: `Meta popis má pouze ${metaDesc.length} znaků (doporučeno ${META_DESC_MIN_LENGTH}-${META_DESC_MAX_LENGTH})`,
+          metaDescription: metaDesc,
+        });
+      }
+
+      // 3. Meta description too long
+      if (metaDesc.length > META_DESC_MAX_LENGTH) {
+        issues.push({
+          type: 'meta_too_long',
+          productCode: product.code,
+          productName: product.name,
+          severity: 'warning',
+          details: `Meta popis má ${metaDesc.length} znaků, Google ho ořízne (max ${META_DESC_MAX_LENGTH})`,
+          metaDescription: metaDesc,
+        });
+      }
+
+      // 4. Meta description same as title
+      if (normalizedMeta === normalizedTitle) {
+        issues.push({
+          type: 'meta_same_as_title',
+          productCode: product.code,
+          productName: product.name,
+          severity: 'error',
+          details: 'Meta popis je identický s názvem produktu - špatné pro SEO',
+          metaDescription: metaDesc,
+        });
+      }
+      // 5. Meta description contains only the title (with minor additions)
+      else if (normalizedMeta.includes(normalizedTitle) && normalizedTitle.length > 15) {
+        const similarity = normalizedTitle.length / normalizedMeta.length;
+        if (similarity > 0.7) {
+          issues.push({
+            type: 'meta_contains_title',
+            productCode: product.code,
+            productName: product.name,
+            severity: 'warning',
+            details: 'Meta popis je příliš podobný názvu produktu - přidejte více informací',
+            metaDescription: metaDesc,
+          });
+        }
+      }
+
+      // 6. Meta description same as short description
+      if (normalizedShort && normalizedMeta === normalizedShort) {
+        issues.push({
+          type: 'meta_same_as_short_desc',
+          productCode: product.code,
+          productName: product.name,
+          severity: 'warning',
+          details: 'Meta popis je identický s krátkým popisem - zvažte optimalizaci pro vyhledávače',
+          metaDescription: metaDesc,
+        });
+      }
+
+      // Collect for duplicate detection
+      if (normalizedMeta.length > 30) {
+        if (!metaDescriptionMap.has(normalizedMeta)) {
+          metaDescriptionMap.set(normalizedMeta, []);
+        }
+        metaDescriptionMap.get(normalizedMeta)!.push(product);
+      }
+    }
+
+    // 7. Title too long
+    if (title.length > TITLE_MAX_LENGTH) {
+      issues.push({
+        type: 'title_too_long',
+        productCode: product.code,
+        productName: product.name,
+        severity: 'warning',
+        details: `Název produktu má ${title.length} znaků, ve vyhledávání bude oříznut (max ${TITLE_MAX_LENGTH})`,
+      });
+    }
+
+    // 8. Title too short
+    if (title.length > 0 && title.length < TITLE_MIN_LENGTH) {
+      issues.push({
+        type: 'title_too_short',
+        productCode: product.code,
+        productName: product.name,
+        severity: 'warning',
+        details: `Název produktu má pouze ${title.length} znaků (doporučeno min. ${TITLE_MIN_LENGTH})`,
+      });
+    }
+  }
+
+  // Report duplicate meta descriptions (skip if products are variants of the same product)
+  for (const [metaDesc, prods] of metaDescriptionMap) {
+    if (prods.length > 1) {
+      // Skip if all products with same meta description appear to be variants (e.g., 114/PRO, 114/STA)
+      if (areProductVariants(prods)) {
+        continue;
+      }
+
+      for (const prod of prods) {
+        issues.push({
+          type: 'duplicate_meta_description',
+          productCode: prod.code,
+          productName: prod.name,
+          severity: 'error',
+          details: `Duplicitní meta popis s ${prods.length - 1} dalšími produkty`,
+          metaDescription: metaDesc.substring(0, 100) + (metaDesc.length > 100 ? '...' : ''),
+          relatedProducts: prods.filter(p => p.code !== prod.code).map(p => p.code),
+        });
+      }
+    }
+  }
+
+  return issues;
+}
+
+// Helper function to strip HTML (reusing existing one)
+function stripHtmlForSeo(html: string): string {
+  return html
+    .replace(/<[^>]*>/g, ' ')
+    .replace(/&nbsp;/g, ' ')
+    .replace(/&amp;/g, '&')
+    .replace(/&lt;/g, '<')
+    .replace(/&gt;/g, '>')
+    .replace(/&quot;/g, '"')
+    .replace(/\s+/g, ' ')
+    .trim();
 }
 
 // ============= MAIN ANALYSIS =============
@@ -1967,6 +2382,7 @@ export function analyzeProducts(
   const stockIssues = analyzeStock(products);
   const categoryIssues = analyzeCategoryStructure(products, categories);
   const productCategoryIssues = analyzeProductCategorization(products);
+  const seoIssues = analyzeSeo(products);
 
   // Additional stats
   let withPrice = 0;
@@ -2046,15 +2462,21 @@ export function analyzeProducts(
   const productCatWarnings = productCategoryIssues.filter(i => i.severity === 'warning').length;
   const categoriesScore = Math.max(0, 100 - (categoryErrors + productCatErrors) * 5 - (categoryWarnings + productCatWarnings) * 2);
 
+  // SEO score
+  const seoErrors = seoIssues.filter(i => i.severity === 'error').length;
+  const seoWarnings = seoIssues.filter(i => i.severity === 'warning').length;
+  const seoScore = Math.max(0, 100 - (seoErrors * 8) - (seoWarnings * 2));
+
   // Overall score (weighted average of all scores)
   const overall = Math.round(
-    (uniquenessScore * 0.15 +
-     qualityScore * 0.15 +
-     completenessScore * 0.2 +
-     businessScore * 0.15 +
-     dataQualityScore * 0.15 +
+    (uniquenessScore * 0.12 +
+     qualityScore * 0.12 +
+     completenessScore * 0.18 +
+     businessScore * 0.12 +
+     dataQualityScore * 0.12 +
      stockScore * 0.1 +
-     categoriesScore * 0.1)
+     categoriesScore * 0.1 +
+     seoScore * 0.14)
   );
 
   return {
@@ -2070,6 +2492,7 @@ export function analyzeProducts(
     stockIssues,
     categoryIssues,
     productCategoryIssues,
+    seoIssues,
     stats: {
       withDescription,
       withShortDescription,
@@ -2096,6 +2519,7 @@ export function analyzeProducts(
       dataQuality: Math.round(dataQualityScore),
       stock: Math.round(stockScore),
       categories: Math.round(categoriesScore),
+      seo: Math.round(seoScore),
       overall,
     },
   };

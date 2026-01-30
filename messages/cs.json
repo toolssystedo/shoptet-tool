@@ -21,6 +21,7 @@
     "contentAudit": "Audit obsahu",
     "categoryMapper": "Mapování kategorií",
     "bannerGenerator": "Generátor bannerů",
+    "miniTools": "Mini nástroje",
     "profile": "Profil",
     "userManagement": "Správa uživatelů",
     "invitations": "Pozvánky",
@@ -132,6 +133,7 @@
       "description": "Zpracovat všech {count} řádků pomocí AI extrakce.",
       "rowsToProcess": "řádků ke zpracování",
       "startProcessing": "Spustit zpracování",
+      "stopProcessing": "Zastavit zpracování",
       "processingNote": "Zpracování může trvat několik minut v závislosti na počtu řádků.",
       "processing": "Zpracovávám...",
       "processed": "Zpracováno {processed} z {total} řádků",
@@ -150,12 +152,28 @@
       "noData": "Žádná data ke zpracování",
       "processingFailed": "Nepodařilo se spustit zpracování",
       "readError": "Nepodařilo se číst odpověď",
+      "processingCancelled": "Zpracování bylo zrušeno",
+      "processingTimeout": "Zpracování vypršelo nebo bylo zrušeno",
       "completedWithErrors": "Zpracování dokončeno s {count} chybami",
       "completedSuccess": "Zpracování úspěšně dokončeno!",
       "downloadResults": "Stáhnout výsledky",
       "downloadFormat": "Formát souboru",
       "csv": "CSV (Shoptet)",
-      "xlsx": "Excel (XLSX)"
+      "xlsx": "Excel (XLSX)",
+      "preflightEstimate": "Odhad zpracování",
+      "estimatedTokens": "Tokeny (odhad)",
+      "estimatedCost": "Náklady (odhad)",
+      "estimatedTime": "Čas (odhad)",
+      "model": "Model",
+      "estimateDisclaimer": "* Odhady jsou přibližné a mohou se lišit podle délky popisů produktů",
+      "tooManyRows": "Příliš mnoho řádků",
+      "tooManyRowsDescription": "Soubor obsahuje více než {limit} řádků. Pro stabilní zpracování rozdělte soubor na menší části.",
+      "largeFileWarning": "Velký soubor",
+      "largeFileWarningDescription": "Soubor obsahuje {count} řádků. Zpracování může trvat déle a náklady budou vyšší. Zvažte rozdělení souboru na menší části.",
+      "processingTips": "Tipy pro zpracování",
+      "tipKeepWindow": "Nechte okno prohlížeče otevřené během zpracování",
+      "tipStableConnection": "Ujistěte se, že máte stabilní internetové připojení",
+      "tipCanStop": "Zpracování můžete kdykoli zastavit tlačítkem Stop"
     },
     "results": {
       "title": "Výsledky obohacení",
@@ -421,6 +439,149 @@
       "missing_csp": "Chybí Content Security Policy",
       "missing_x_frame_options": "Chybí X-Frame-Options"
     },
+    "explanations": {
+      "linksTab": {
+        "title": "Co znamenají problémy s odkazy?",
+        "description": "Nefunkční odkazy (404) poškozují uživatelskou zkušenost a SEO. Google penalizuje weby s mnoha nefunkčními odkazy.",
+        "pages404": {
+          "what": "Stránky vracející chybu 404 - neexistují nebo byly smazány.",
+          "howToFix": "Zkontrolujte, zda stránka existuje v administraci Shoptetu. Pokud ne, nastavte přesměrování 301 na relevantní stránku nebo smažte odkazy na ni.",
+          "shoptetPath": "Administrace → SEO a marketing → Přesměrování URL"
+        },
+        "internalLinks404": {
+          "what": "Odkazy uvnitř vašeho webu vedoucí na neexistující stránky.",
+          "howToFix": "Najděte stránku, kde je odkaz (viz 'Nalezeno na') a opravte nebo odstraňte nefunkční odkaz.",
+          "shoptetPath": "Administrace → Obsah → příslušná stránka/produkt"
+        },
+        "brokenImages": {
+          "what": "Obrázky, které se nenačítají - chybí soubor nebo špatná cesta.",
+          "howToFix": "Nahrajte chybějící obrázek nebo opravte cestu k němu. Zkontrolujte, zda soubor existuje na FTP.",
+          "shoptetPath": "Administrace → Produkty → Detail produktu → Obrázky"
+        },
+        "externalLinks404": {
+          "what": "Odkazy na cizí weby, které již neexistují.",
+          "howToFix": "Odstraňte nebo aktualizujte odkazy na externí weby. Tyto odkazy jsou méně kritické než interní.",
+          "note": "Poznámka: Některé externí weby mohou blokovat automatické kontroly. Ověřte ručně."
+        }
+      },
+      "performanceTab": {
+        "title": "Co ovlivňuje rychlost webu?",
+        "description": "Rychlost načítání přímo ovlivňuje konverze a SEO. Pomalý web = méně objednávek.",
+        "too_many_js": {
+          "what": "Příliš mnoho JavaScript souborů zpomaluje načítání stránky.",
+          "howToFix": "Zkontrolujte nainstalované doplňky v Shoptetu. Odstraňte nepoužívané. U vlastních skriptů zvažte sloučení.",
+          "shoptetPath": "Administrace → Doplňky → Nainstalované doplňky"
+        },
+        "too_many_css": {
+          "what": "Příliš mnoho CSS souborů způsobuje zpoždění vykreslení stránky.",
+          "howToFix": "Podobně jako u JS - zkontrolujte doplňky a vlastní úpravy šablony.",
+          "shoptetPath": "Administrace → Design → Vlastní kód"
+        },
+        "render_blocking_script": {
+          "what": "Skripty v hlavičce blokují vykreslení obsahu stránky.",
+          "howToFix": "Přesuňte skripty na konec stránky nebo přidejte atribut 'async' či 'defer'. U Shoptetu kontaktujte podporu.",
+          "note": "Poznámka: Některé Shoptet skripty nelze přesunout - jsou součástí platformy."
+        },
+        "missing_lazy_loading": {
+          "what": "Obrázky se načítají všechny najednou místo postupně.",
+          "howToFix": "Shoptet automaticky přidává lazy loading. Pokud chybí, zkontrolujte šablonu nebo doplňky.",
+          "shoptetPath": "Administrace → Design → Nastavení šablony"
+        },
+        "large_page_size": {
+          "what": "Celková velikost stránky přesahuje doporučený limit (obvykle 3 MB).",
+          "howToFix": "Optimalizujte obrázky, odstraňte nepotřebné skripty a zkraťte dlouhé popisy produktů.",
+          "shoptetPath": "Administrace → Produkty → Hromadné úpravy obrázků"
+        }
+      },
+      "htmlTab": {
+        "title": "Co kontroluje kvalita HTML?",
+        "description": "Správná struktura HTML pomáhá vyhledávačům pochopit obsah stránky a zlepšuje přístupnost.",
+        "missing_h1": {
+          "what": "Stránka nemá hlavní nadpis H1 - důležitý pro SEO.",
+          "howToFix": "Každá stránka by měla mít právě jeden H1. U produktů je to obvykle název produktu.",
+          "shoptetPath": "Administrace → Design → Šablona (pokročilé)"
+        },
+        "duplicate_h1": {
+          "what": "Stránka má více H1 nadpisů - měl by být pouze jeden.",
+          "howToFix": "Zkontrolujte šablonu a widgety. Další nadpisy změňte na H2 nebo H3.",
+          "shoptetPath": "Administrace → Design → Vlastní kód"
+        },
+        "missing_alt": {
+          "what": "Obrázky nemají alternativní text - špatné pro SEO a přístupnost.",
+          "howToFix": "Přidejte popisný alt text ke všem obrázkům. U produktů Shoptet generuje automaticky z názvu.",
+          "shoptetPath": "Administrace → Produkty → Detail → Obrázky"
+        },
+        "empty_link": {
+          "what": "Odkazy bez textu nebo s prázdným obsahem.",
+          "howToFix": "Přidejte popisný text odkazu nebo aria-label pro ikony.",
+          "note": "Poznámka: Některé prázdné odkazy jsou součástí Shoptet šablony (ikony, tlačítka)."
+        },
+        "missing_title": {
+          "what": "Stránka nemá definovaný title tag - kritické pro SEO.",
+          "howToFix": "Nastavte title v SEO nastavení stránky/produktu.",
+          "shoptetPath": "Administrace → SEO a marketing → SEO"
+        },
+        "missing_meta_description": {
+          "what": "Chybí meta popis - ovlivňuje zobrazení ve výsledcích vyhledávání.",
+          "howToFix": "Nastavte meta popis v SEO nastavení. Shoptet ho může generovat automaticky.",
+          "shoptetPath": "Administrace → SEO a marketing → SEO"
+        }
+      },
+      "configTab": {
+        "title": "Co je technická konfigurace?",
+        "description": "Správná konfigurace pomáhá vyhledávačům indexovat váš web a zobrazovat ho ve výsledcích.",
+        "missing_robots": {
+          "what": "Soubor robots.txt říká vyhledávačům, co mohou indexovat.",
+          "howToFix": "Shoptet vytváří robots.txt automaticky. Pokud chybí, kontaktujte podporu.",
+          "shoptetPath": "Automaticky generováno Shoptetem"
+        },
+        "missing_sitemap": {
+          "what": "Sitemap.xml obsahuje seznam všech stránek pro vyhledávače.",
+          "howToFix": "Shoptet generuje sitemap automaticky. Ověřte na yoursite.cz/sitemap.xml",
+          "shoptetPath": "Administrace → SEO a marketing → Sitemap"
+        },
+        "sitemap_404_urls": {
+          "what": "Sitemap obsahuje URL, které vracejí chybu 404.",
+          "howToFix": "Shoptet by měl sitemap aktualizovat automaticky. Zkuste regenerovat nebo počkejte na automatickou aktualizaci.",
+          "shoptetPath": "Administrace → SEO a marketing → Sitemap → Regenerovat"
+        },
+        "missing_favicon": {
+          "what": "Chybí ikona webu zobrazovaná v záložce prohlížeče.",
+          "howToFix": "Nahrajte favicon v nastavení designu.",
+          "shoptetPath": "Administrace → Design → Logo a favicon"
+        },
+        "missing_og_tags": {
+          "what": "Open Graph tagy ovlivňují, jak vypadá odkaz na Facebooku.",
+          "howToFix": "Nastavte OG tagy v SEO nastavení nebo použijte doplněk.",
+          "shoptetPath": "Administrace → SEO a marketing → Sociální sítě"
+        },
+        "missing_twitter_cards": {
+          "what": "Twitter Card tagy ovlivňují zobrazení na Twitteru/X.",
+          "howToFix": "Nastavte podobně jako OG tagy.",
+          "shoptetPath": "Administrace → SEO a marketing → Sociální sítě"
+        }
+      },
+      "securityTab": {
+        "title": "Co kontroluje bezpečnost?",
+        "description": "Bezpečnostní problémy mohou ohrozit vaše zákazníky a poškodit důvěryhodnost webu.",
+        "no_https_redirect": {
+          "what": "Web není automaticky přesměrován z HTTP na HTTPS.",
+          "howToFix": "Shoptet má HTTPS automaticky. Pokud nefunguje, kontaktujte podporu.",
+          "shoptetPath": "Kontaktujte Shoptet podporu"
+        },
+        "mixed_content": {
+          "what": "Stránka načítá některé zdroje přes nezabezpečené HTTP.",
+          "howToFix": "Změňte všechny http:// odkazy na https:// ve vlastním kódu a popisech.",
+          "shoptetPath": "Administrace → Design → Vlastní kód"
+        },
+        "untrusted_scripts": {
+          "what": "Skripty z neznámých zdrojů mohou být bezpečnostním rizikem.",
+          "howToFix": "Zkontrolujte, zda tyto skripty opravdu potřebujete. Odstraňte neznámé.",
+          "note": "Poznámka: Shoptet a běžné služby (Google, Facebook) jsou bezpečné."
+        }
+      },
+      "shoptetNote": "Některé problémy jsou součástí Shoptet platformy a nelze je ovlivnit. Zaměřte se na problémy, které můžete řešit."
+    },
     "foundOn": "Nalezeno na",
     "showMore": "Zobrazit dalších {count}",
     "showLess": "Zobrazit méně"
@@ -438,19 +599,43 @@
       "title": "Nahrát produktový feed",
       "description": "Nahrajte XLSX export produktů ze Shoptetu",
       "productFeed": "Produktový feed",
-      "productFeedDescription": "Nahrajte XLSX export produktů (povinné)",
+      "productFeedDescription": "Nahrajte export produktů (povinné)",
       "categoryFeed": "Kategorie feed",
-      "categoryFeedDescription": "Nahrajte export kategorií ve formátu XLSX, CSV nebo XML (volitelné)",
+      "categoryFeedDescription": "Nahrajte export kategorií (volitelné)",
       "dragDrop": "Přetáhněte soubor sem",
       "orClick": "nebo klikněte pro výběr",
       "optional": "volitelné - pro detailnější analýzu",
       "selectFile": "Vybrat soubor",
       "changeFile": "Změnit soubor",
-      "formats": "Podporované formáty: XLSX, XLS",
+      "formats": "Podporované formáty: XLSX, XLS, CSV",
       "categoryFormats": "Podporované formáty: XLSX, XLS, CSV, XML",
       "analyzing": "Analyzuji produkty...",
       "categories": "kategorií",
       "withCategoryFeed": "s kategoriemi"
+    },
+    "feedExplanations": {
+      "title": "Jak získat exporty ze Shoptetu?",
+      "productFeed": {
+        "title": "Produktový feed",
+        "description": "Export všech produktů z administrace Shoptetu obsahující názvy, popisy, ceny, obrázky a další údaje.",
+        "howToGet": "Administrace → Produkty → Export → Vyberte \"Všechny sloupce\" nebo konkrétní sloupce → Stáhnout XLSX",
+        "requiredColumns": "Důležité sloupce: code, name, description, shortDescription, price, image, categoryText",
+        "note": "Čím více sloupců exportujete, tím detailnější bude analýza."
+      },
+      "categoryFeed": {
+        "title": "Kategorie feed",
+        "description": "Export struktury kategorií pro analýzu prázdných kategorií a struktury e-shopu.",
+        "howToGet": "Administrace → Kategorie → Export kategorií → Stáhnout XLSX/CSV",
+        "xmlNote": "Pro XML: Použijte Heureka nebo Google Merchant feed s kategoriemi",
+        "optional": "Tento soubor je volitelný. Bez něj se některé kontroly kategorií přeskočí.",
+        "columns": "Podporované sloupce: code/guid, name, parentCode, path/categoryText"
+      },
+      "tips": {
+        "title": "Tipy pro lepší analýzu",
+        "tip1": "Exportujte všechny produkty včetně neaktivních pro kompletní přehled",
+        "tip2": "Použijte nejnovější export - starší data mohou být nepřesná",
+        "tip3": "Kategorie feed pomáhá odhalit prázdné a zanořené kategorie"
+      }
     },
     "errors": {
       "noProducts": "V souboru nebyly nalezeny žádné produkty",
@@ -672,6 +857,72 @@
       "parseError": "Nepodařilo se zpracovat soubor",
       "invalidFile": "Nahrajte prosím soubor ve formátu XLSX nebo XLS",
       "mappingError": "Chyba při mapování kategorií"
+    }
+  },
+  "miniTools": {
+    "pageTitle": "Mini nástroje",
+    "pageDescription": "Rychlé nástroje pro správu produktů a akcí",
+    "tabs": {
+      "hideSoldOut": "Skrýt vyprodané",
+      "autoSorting": "Auto řazení",
+      "wholesale": "Velkoobchodní ceníky",
+      "promotions": "Správa akcí"
+    },
+    "hideSoldOut": {
+      "title": "Skrýt vyprodané produkty",
+      "description": "Automaticky skryje produkty, které mají nulový sklad",
+      "uploadFile": "Nahrát export produktů",
+      "loaded": "Načteno {count} produktů",
+      "soldOut": "Vyprodáno: {count}",
+      "process": "Zpracovat a stáhnout",
+      "result": "Skryto {hidden} z {total} produktů. Soubor pro import byl stažen."
+    },
+    "autoSorting": {
+      "title": "Automatické řazení produktů",
+      "description": "Seřadí produkty podle dostupnosti: skladem → málo kusů → vyprodáno",
+      "uploadFile": "Nahrát export produktů",
+      "lowStockThreshold": "Práh pro 'málo kusů'",
+      "lowStockInfo": "Produkty s tímto nebo menším počtem kusů budou označeny jako 'málo kusů'",
+      "loaded": "Načteno {count} produktů",
+      "inStock": "Skladem: {count}",
+      "lowStock": "Málo kusů: {count}",
+      "soldOut": "Vyprodáno: {count}",
+      "inStockLabel": "Skladem",
+      "lowStockLabel": "Málo kusů",
+      "soldOutLabel": "Vyprodáno",
+      "process": "Zpracovat a stáhnout",
+      "result": "Seřazeno {sorted} produktů. Soubor pro import byl stažen."
+    },
+    "wholesale": {
+      "title": "Generátor velkoobchodních ceníků",
+      "description": "Vytvořte ceníky s různými úrovněmi slev pro velkoobchodní partnery",
+      "uploadFile": "Nahrát export produktů",
+      "loaded": "Načteno {count} produktů",
+      "discountLevels": "Úrovně slev",
+      "addLevel": "Přidat úroveň",
+      "levelName": "Název úrovně",
+      "generate": "Vygenerovat {count} ceníků"
+    },
+    "promotions": {
+      "title": "Správa akcí",
+      "description": "Nastavte příznaky akcí, slevy a pravidla pro produkty",
+      "uploadFile": "Nahrát export produktů",
+      "loaded": "Načteno {count} produktů",
+      "flags": "Příznaky",
+      "customFlagPlaceholder": "Vlastní příznak",
+      "dateFrom": "Platnost od",
+      "dateTo": "Platnost do",
+      "selectDate": "Vybrat datum",
+      "rules": "Pravidla",
+      "addPriceRule": "+ Cenový rozsah",
+      "addBrandRule": "+ Značka",
+      "addDiscountRule": "+ Sleva",
+      "excludePriceRange": "Vyloučit ceny",
+      "excludeBrands": "Vyloučit značky",
+      "brandPlaceholder": "Značky oddělené čárkou",
+      "discountBy": "Zlevnit o",
+      "process": "Zpracovat a stáhnout",
+      "result": "Upraveno {affected} z {total} produktů. Soubor pro import byl stažen."
     }
   }
 }

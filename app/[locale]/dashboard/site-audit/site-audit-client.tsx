@@ -31,7 +31,16 @@ import {
   TrendingUp,
   HelpCircle,
   Download,
+  Info,
+  ChevronDown,
+  Lightbulb,
+  Wrench,
 } from "lucide-react";
+import {
+  Collapsible,
+  CollapsibleContent,
+  CollapsibleTrigger,
+} from "@/components/ui/collapsible";
 import { exportAuditToPdf, exportAuditWithAIAnalysis, type AIAnalysis } from "@/lib/site-audit/pdf-export";
 import type { AuditReport, CrawlResult, PerformanceIssue, HtmlIssue, ConfigIssue, SecurityIssue } from "@/lib/site-audit/crawler";
 
@@ -476,6 +485,19 @@ export function SiteAuditClient() {
 
             {/* Links Tab */}
             <TabsContent value="links" className="space-y-4 mt-4">
+              {/* Explanation Section */}
+              {getLinkErrorCount(report) > 0 && (
+                <TabExplanation
+                  tabKey="linksTab"
+                  issueTypes={[
+                    ...(report.errors.pages404.length > 0 ? ["pages404"] : []),
+                    ...(report.errors.internalLinks404.length > 0 ? ["internalLinks404"] : []),
+                    ...(report.errors.brokenImages.length > 0 ? ["brokenImages"] : []),
+                    ...(report.errors.externalLinks404.length > 0 ? ["externalLinks404"] : []),
+                  ]}
+                  t={t}
+                />
+              )}
               {report.errors.pages404.length > 0 && (
                 <IssueSection
                   title={t("errors.pages404")}
@@ -542,6 +564,14 @@ export function SiteAuditClient() {
 
             {/* Performance Tab */}
             <TabsContent value="performance" className="space-y-4 mt-4">
+              {/* Explanation Section */}
+              {report.performance.length > 0 && (
+                <TabExplanation
+                  tabKey="performanceTab"
+                  issueTypes={[...new Set(report.performance.map(i => i.type))]}
+                  t={t}
+                />
+              )}
               {report.performance.length > 0 ? (
                 <IssueSection
                   title={t("tabs.performance")}
@@ -567,6 +597,14 @@ export function SiteAuditClient() {
 
             {/* HTML Tab */}
             <TabsContent value="html" className="space-y-4 mt-4">
+              {/* Explanation Section */}
+              {report.html.length > 0 && (
+                <TabExplanation
+                  tabKey="htmlTab"
+                  issueTypes={[...new Set(report.html.map(i => i.type))]}
+                  t={t}
+                />
+              )}
               {report.html.length > 0 ? (
                 <IssueSection
                   title={t("tabs.html")}
@@ -593,6 +631,14 @@ export function SiteAuditClient() {
 
             {/* Config Tab */}
             <TabsContent value="config" className="space-y-4 mt-4">
+              {/* Explanation Section */}
+              {report.config.length > 0 && (
+                <TabExplanation
+                  tabKey="configTab"
+                  issueTypes={[...new Set(report.config.map(i => i.type))]}
+                  t={t}
+                />
+              )}
               {report.config.length > 0 ? (
                 <IssueSection
                   title={t("tabs.config")}
@@ -618,6 +664,14 @@ export function SiteAuditClient() {
 
             {/* Security Tab */}
             <TabsContent value="security" className="space-y-4 mt-4">
+              {/* Explanation Section */}
+              {report.security.length > 0 && (
+                <TabExplanation
+                  tabKey="securityTab"
+                  issueTypes={[...new Set(report.security.map(i => i.type))]}
+                  t={t}
+                />
+              )}
               {report.security.length > 0 ? (
                 <SecuritySection
                   items={report.security.map(i => ({
@@ -669,6 +723,78 @@ function ScoreCard({ label, score, isMain = false, tooltip }: { label: string; s
         )}
       </div>
     </div>
+  );
+}
+
+// Tab explanation component - shows what the tab is about and how to fix issues
+interface TabExplanationProps {
+  tabKey: "linksTab" | "performanceTab" | "htmlTab" | "configTab" | "securityTab";
+  issueTypes: string[];
+  t: ReturnType<typeof useTranslations<"siteAudit">>;
+}
+
+function TabExplanation({ tabKey, issueTypes, t }: TabExplanationProps) {
+  const [isOpen, setIsOpen] = useState(false);
+
+  return (
+    <Card className="bg-blue-500/5 border-blue-500/20">
+      <Collapsible open={isOpen} onOpenChange={setIsOpen}>
+        <CollapsibleTrigger asChild>
+          <CardHeader className="cursor-pointer hover:bg-blue-500/10 transition-colors py-3">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <Info className="h-5 w-5 text-blue-600" />
+                <CardTitle className="text-base text-blue-600">
+                  {t(`explanations.${tabKey}.title` as any)}
+                </CardTitle>
+              </div>
+              <ChevronDown className={`h-4 w-4 text-blue-600 transition-transform ${isOpen ? "rotate-180" : ""}`} />
+            </div>
+            <CardDescription className="text-blue-600/70 text-sm mt-1">
+              {t(`explanations.${tabKey}.description` as any)}
+            </CardDescription>
+          </CardHeader>
+        </CollapsibleTrigger>
+        <CollapsibleContent>
+          <CardContent className="pt-0 pb-4">
+            <div className="space-y-3">
+              {issueTypes.map((issueType) => (
+                <div key={issueType} className="border-l-2 border-blue-500/30 pl-3 py-1">
+                  <div className="flex items-start gap-2">
+                    <Lightbulb className="h-4 w-4 text-yellow-600 mt-0.5 flex-shrink-0" />
+                    <div>
+                      <p className="font-medium text-sm">{t(`explanations.${tabKey}.${issueType}.what` as any)}</p>
+                    </div>
+                  </div>
+                  <div className="flex items-start gap-2 mt-2">
+                    <Wrench className="h-4 w-4 text-green-600 mt-0.5 flex-shrink-0" />
+                    <div>
+                      <p className="text-sm text-muted-foreground">
+                        <span className="font-medium text-green-600">Jak opravit: </span>
+                        {t(`explanations.${tabKey}.${issueType}.howToFix` as any)}
+                      </p>
+                      {t.raw(`explanations.${tabKey}.${issueType}.shoptetPath` as any) && (
+                        <p className="text-xs text-muted-foreground/70 mt-1 font-mono">
+                          📍 {t(`explanations.${tabKey}.${issueType}.shoptetPath` as any)}
+                        </p>
+                      )}
+                      {t.raw(`explanations.${tabKey}.${issueType}.note` as any) && (
+                        <p className="text-xs text-amber-600 mt-1 italic">
+                          {t(`explanations.${tabKey}.${issueType}.note` as any)}
+                        </p>
+                      )}
+                    </div>
+                  </div>
+                </div>
+              ))}
+              <p className="text-xs text-muted-foreground/70 italic border-t pt-2 mt-3">
+                {t("explanations.shoptetNote" as any)}
+              </p>
+            </div>
+          </CardContent>
+        </CollapsibleContent>
+      </Collapsible>
+    </Card>
   );
 }
 
